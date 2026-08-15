@@ -20,7 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.text.Normalizer;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -43,8 +47,16 @@ public class SentenceServiceImpl implements SentenceService {
             throw new BadRequestException("No sentences could be extracted from the provided image");
         }
 
+        Set<String> knownPhrases = new HashSet<>();
+        sentenceRepository.findByUserIdOrderByCreatedAtDesc(userId).forEach(
+                sentence -> knownPhrases.add(normalizePhrase(sentence.getOriginalText())));
+        List<String> newSentences = sentences.stream()
+                .filter(text -> !normalizePhrase(text).isBlank())
+                .filter(text -> knownPhrases.add(normalizePhrase(text)))
+                .toList();
+
         Instant now = Instant.now();
-        List<Sentence> saved = sentences.stream()
+        List<Sentence> saved = newSentences.stream()
                 .map(text -> Sentence.builder()
                         .userId(userId)
                         .originalText(text)
@@ -62,6 +74,14 @@ public class SentenceServiceImpl implements SentenceService {
 
         return new ImageExtractionResponse(dtos);
     }
+
+        private String normalizePhrase(String text) {
+                return Normalizer.normalize(text, Normalizer.Form.NFKC)
+                                .toLowerCase(Locale.ROOT)
+                                .replaceAll("[^\\p{L}\\p{N}]+", " ")
+                                .trim()
+                                .replaceAll("\\s+", " ");
+        }
 
     @Override
     @Transactional(readOnly = true)

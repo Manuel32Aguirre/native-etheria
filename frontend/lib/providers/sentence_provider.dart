@@ -39,19 +39,25 @@ class SentenceProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> extractFromImageBytes(List<int> bytes) async {
+  Future<int?> extractFromImageBytesBatch(List<List<int>> images) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
     try {
-      await sentenceService.extractFromImageBase64(base64Encode(bytes));
+      var createdCount = 0;
+      for (final bytes in images) {
+        createdCount += await sentenceService.extractFromImageBase64(
+          base64Encode(bytes),
+        );
+      }
       await refreshBlock();
-      return true;
+      await refreshHistory();
+      return createdCount;
     } catch (e) {
       _errorMessage = e.toString();
       _isLoading = false;
       notifyListeners();
-      return false;
+      return null;
     }
   }
 

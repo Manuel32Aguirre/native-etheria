@@ -24,11 +24,14 @@ class SentenceService {
         .toList();
   }
 
-  Future<void> extractFromImageBase64(String base64Image) async {
-    await client.post(
+  Future<int> extractFromImageBase64(String base64Image) async {
+    final result = await client.post(
       '/sentences/extract-image',
       body: {'imageBase64': base64Image},
     );
+    return (result as Map<String, dynamic>)['createdSentences'] is List
+        ? ((result['createdSentences'] as List).length)
+        : 0;
   }
 
   Future<Map<String, dynamic>> completeReview(int sentenceId) async {

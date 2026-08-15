@@ -44,8 +44,8 @@ public class OpenAiClient {
             + "Prefer common phrasing such as \"I got distracted when I came in.\" over a literal or awkward answer.\n"
                 + "6. If a feedback block contains no actual correction or error, do not extract it. "
                 + "Extract only blocks where the learner's sentence needed correction.\n"
-                + "7. If the interface marks a sentence as correct but the sentence is still grammatically wrong, "
-                + "correct and rewrite it yourself.\n"
+                + "7. Independently check the English grammar of EVERY extracted sentence. If the interface marks a sentence as correct but it contains any grammar, word-choice, spelling, tense, article, preposition, or word-order error, "
+                + "you MUST correct and rewrite it yourself before returning it. Never return incorrect English merely because the interface marked it correct.\n"
                 + "8. Output EXACTLY a JSON array of strings, where each string is one reusable answer. "
             + "Do not include markdown, explanations, or any other text.";
 

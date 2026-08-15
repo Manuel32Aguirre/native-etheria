@@ -31,23 +31,42 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _pickImageAndExtract(ImageSource source) async {
-    final XFile? picked = await _picker.pickImage(
-      source: source,
-      imageQuality: 85,
+  Future<void> _extractImages(List<XFile> files) async {
+    if (files.isEmpty) return;
+    final bytes = await Future.wait(
+      files.take(10).map((file) => File(file.path).readAsBytes()),
     );
-    if (picked == null) return;
-    final bytes = await File(picked.path).readAsBytes();
     if (!mounted) return;
     final sentenceProvider = context.read<SentenceProvider>();
-    final ok = await sentenceProvider.extractFromImageBytes(bytes);
+    final createdCount = await sentenceProvider.extractFromImageBytesBatch(
+      bytes,
+    );
     if (!mounted) return;
-    if (!ok) {
+    if (createdCount == null) {
       final error = sentenceProvider.errorMessage;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error ?? 'Error al procesar la imagen')),
       );
+      return;
     }
+    final message = createdCount == 0
+        ? 'No se agregaron frases nuevas. Las frases repetidas se omitieron.'
+        : '$createdCount frase${createdCount == 1 ? '' : 's'} nueva${createdCount == 1 ? '' : 's'} agregada${createdCount == 1 ? '' : 's'}.';
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _takePhoto() async {
+    final picked = await _picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 85,
+    );
+    if (picked != null) await _extractImages([picked]);
+  }
+
+  Future<void> _pickImagesFromGallery() async {
+    final picked = await _picker.pickMultiImage(imageQuality: 85, limit: 10);
+    await _extractImages(picked);
   }
 
   void _startPractice(List<Sentence> block) {
@@ -65,7 +84,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_selectedTab == 0 ? 'Native – Memorización Activa' : 'Programa'),
+        title: Text(
+          _selectedTab == 0 ? 'Native – Memorización Activa' : 'Programa',
+        ),
         actions: [
           IconButton(
             tooltip: 'Configuración',
@@ -88,15 +109,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         title: const Text('Tomar foto'),
                         onTap: () {
                           Navigator.pop(context);
-                          _pickImageAndExtract(ImageSource.camera);
+                          _takePhoto();
                         },
                       ),
                       ListTile(
                         leading: const Icon(Icons.photo_library),
-                        title: const Text('Elegir de la galería'),
+                        title: const Text('Elegir hasta 10 imágenes'),
+                        subtitle: const Text(
+                          'Puedes seleccionar varias capturas a la vez',
+                        ),
                         onTap: () {
                           Navigator.pop(context);
-                          _pickImageAndExtract(ImageSource.gallery);
+                          _pickImagesFromGallery();
                         },
                       ),
                     ],
@@ -111,78 +135,87 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedIndex: _selectedTab,
         onDestinationSelected: (index) => setState(() => _selectedTab = index),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Práctica'),
-          NavigationDestination(icon: Icon(Icons.alarm_outlined), selectedIcon: Icon(Icons.alarm), label: 'Programa'),
+          NavigationDestination(
+            icon: Icon(Icons.menu_book_outlined),
+            selectedIcon: Icon(Icons.menu_book),
+            label: 'Práctica',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.alarm_outlined),
+            selectedIcon: Icon(Icons.alarm),
+            label: 'Programa',
+          ),
         ],
       ),
-      body: _selectedTab == 1 ? const ScheduleScreen() : RefreshIndicator(
-        onRefresh: provider.refreshBlock,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            if (provider.isLoading) const LinearProgressIndicator(),
-            if (provider.errorMessage != null)
-              Text(
-                provider.errorMessage!,
-                style: const TextStyle(color: Colors.red),
+      body: _selectedTab == 1
+          ? const ScheduleScreen()
+          : RefreshIndicator(
+              onRefresh: provider.refreshBlock,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (provider.isLoading) const LinearProgressIndicator(),
+                  if (provider.errorMessage != null)
+                    Text(
+                      provider.errorMessage!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  Text(
+                    'Bloque Actual',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  if (provider.currentBlock.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'No hay oraciones listas para practicar en este momento.',
+                      ),
+                    )
+                  else
+                    Card(
+                      child: Column(
+                        children: provider.currentBlock
+                            .map(
+                              (s) => ListTile(
+                                leading: const Icon(Icons.menu_book),
+                                title: Text(s.originalText),
+                                subtitle: Text(
+                                  'Intervalo #${s.intervalIndex} · Próximo repaso: ${formatReviewDate(s.nextReviewAt)}',
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: provider.currentBlock.isEmpty
+                        ? null
+                        : () => _startPractice(provider.currentBlock),
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Iniciar sesión de práctica'),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Cola de Espera',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.hourglass_bottom),
+                      title: Text(
+                        '${provider.pendingNowCount} oraciones en espera (PENDING_NOW)',
+                      ),
+                      subtitle: const Text(
+                        'Se procesarán en el próximo bloque disponible.',
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            Text(
-              'Bloque Actual',
-              style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 8),
-            if (provider.currentBlock.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  'No hay oraciones listas para practicar en este momento.',
-                ),
-              )
-            else
-              Card(
-                child: Column(
-                  children: provider.currentBlock
-                      .map(
-                        (s) => ListTile(
-                          leading: const Icon(Icons.menu_book),
-                          title: Text(s.originalText),
-                          subtitle: Text(
-                            'Intervalo #${s.intervalIndex} · Próximo repaso: ${formatReviewDate(s.nextReviewAt)}',
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: provider.currentBlock.isEmpty
-                  ? null
-                  : () => _startPractice(provider.currentBlock),
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Iniciar sesión de práctica'),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Cola de Espera',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.hourglass_bottom),
-                title: Text(
-                  '${provider.pendingNowCount} oraciones en espera (PENDING_NOW)',
-                ),
-                subtitle: const Text(
-                  'Se procesarán en el próximo bloque disponible.',
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
-
 }
