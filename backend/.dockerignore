@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+target/
+native/
+.git/
+.gitignore
+build.log
+compile_output.txt
+output.log
+*.log
+README.md
