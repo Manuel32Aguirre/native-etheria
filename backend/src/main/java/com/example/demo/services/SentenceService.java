@@ -19,4 +19,7 @@ public interface SentenceService {
 
     /** Advances a sentence's Ebbinghaus interval after 20 correct repetitions in a session. */
     CompleteReviewResponse completeReview(Long userId, Long sentenceId);
+
+    /** Deletes an owned sentence and its review history. */
+    void deleteSentence(Long userId, Long sentenceId);
 }

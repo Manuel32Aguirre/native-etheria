@@ -5,18 +5,36 @@ import 'package:timezone/timezone.dart' as tz;
 class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
+  bool _initialized = false;
 
   Future<void> initialize() async {
+    if (_initialized) return;
     tz.initializeTimeZones();
     const settings = InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
     );
     await _plugin.initialize(settings);
-    await _plugin
+    _initialized = true;
+  }
+
+  Future<bool> requestPermission() async {
+    await initialize();
+    final granted = await _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.requestNotificationsPermission();
+    return granted ?? true;
+  }
+
+  Future<bool> areNotificationsEnabled() async {
+    await initialize();
+    return await _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.areNotificationsEnabled() ??
+        true;
   }
 
   Future<void> scheduleReview({
@@ -24,6 +42,7 @@ class NotificationService {
     required DateTime at,
     required String sentence,
   }) async {
+    await initialize();
     if (at.isBefore(DateTime.now())) return;
     await _plugin.zonedSchedule(
       id,
@@ -42,5 +61,10 @@ class NotificationService {
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
+  }
+
+  Future<void> cancelReview(int id) async {
+    await initialize();
+    await _plugin.cancel(id);
   }
 }

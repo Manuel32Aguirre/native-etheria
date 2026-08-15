@@ -8,4 +8,6 @@ import java.util.List;
 public interface ReviewLogRepository extends JpaRepository<ReviewLog, Long> {
 
     List<ReviewLog> findBySentenceIdOrderByReviewedAtDesc(Long sentenceId);
+
+    void deleteBySentenceId(Long sentenceId);
 }

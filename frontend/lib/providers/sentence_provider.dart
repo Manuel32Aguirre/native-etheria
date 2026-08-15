@@ -64,4 +64,19 @@ class SentenceProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<bool> deleteSentence(int sentenceId) async {
+    _errorMessage = null;
+    try {
+      await sentenceService.deleteSentence(sentenceId);
+      _history.removeWhere((sentence) => sentence.id == sentenceId);
+      _currentBlock.removeWhere((sentence) => sentence.id == sentenceId);
+      notifyListeners();
+      return true;
+    } catch (error) {
+      _errorMessage = error.toString();
+      notifyListeners();
+      return false;
+    }
+  }
 }

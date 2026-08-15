@@ -132,4 +132,17 @@ public class SentenceServiceImpl implements SentenceService {
                 mastered ? null : sentence.getNextReviewAt().toString()
         );
     }
+
+        @Override
+        @Transactional
+        public void deleteSentence(Long userId, Long sentenceId) {
+                Sentence sentence = sentenceRepository.findById(sentenceId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Sentence not found: " + sentenceId));
+                if (!sentence.getUserId().equals(userId)) {
+                        throw new BadRequestException("Sentence does not belong to the current user");
+                }
+
+                reviewLogRepository.deleteBySentenceId(sentenceId);
+                sentenceRepository.delete(sentence);
+        }
 }

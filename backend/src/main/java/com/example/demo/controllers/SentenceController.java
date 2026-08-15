@@ -45,4 +45,12 @@ public class SentenceController {
             @PathVariable("id") Long sentenceId) {
         return ResponseEntity.ok(sentenceService.completeReview(principal.getId(), sentenceId));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteSentence(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable("id") Long sentenceId) {
+        sentenceService.deleteSentence(principal.getId(), sentenceId);
+        return ResponseEntity.noContent().build();
+    }
 }

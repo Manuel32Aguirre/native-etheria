@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+
+import '../config/app_config.dart';
 import '../models/sentence.dart';
 import '../models/sentence_block.dart';
 import 'api_client.dart';
@@ -31,6 +34,17 @@ class SentenceService {
   Future<Map<String, dynamic>> completeReview(int sentenceId) async {
     final result = await client.post('/sentences/$sentenceId/complete');
     return result as Map<String, dynamic>;
+  }
+
+  Future<void> deleteSentence(int sentenceId) async {
+    final token = await client.token;
+    final response = await http.delete(
+      Uri.parse('${AppConfig.baseUrl}/sentences/$sentenceId'),
+      headers: {if (token != null) 'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(response.statusCode, response.body);
+    }
   }
 }
 

@@ -29,21 +29,24 @@ public class OpenAiClient {
         this.properties = properties;
     }
 
-    /** Sends the image to GPT-4o and extracts only the corrected checkmark sentences. */
+    /** Sends the image to GPT-4o and extracts reusable answers from corrected learner mistakes. */
     public List<String> extractSentencesFromImage(String imageBase64) {
         String prompt = "You are a precise data extraction API. "
-            + "Your task is to extract corrected English sentences from the provided screenshot of a language learning app.\n\n"
+            + "Your task is to turn corrected English mistakes from the provided language-learning screenshot into short, reusable answers for active-recall practice.\n\n"
             + "STRICT RULES:\n"
             + "1. The image contains multiple feedback blocks. Each block has an explanation paragraph, followed by a sentence next to a GREEN CHECKMARK icon.\n"
             + "2. You MUST IGNORE the explanation paragraphs completely.\n"
             + "3. You MUST ONLY extract the text located exactly next to the GREEN CHECKMARK.\n"
             + "4. Within the checkmark text, red words are crossed out and green words are corrections. "
-            + "IGNORE all red crossed-out text. Combine the black text and green corrected text to form the final, grammatically correct sentence.\n"
-                + "5. If a feedback block contains no actual correction or error, do not extract it. "
+            + "IGNORE all red crossed-out text and first reconstruct the grammatically correct meaning.\n"
+            + "5. Rewrite that meaning as ONE short, natural, self-contained first-person answer that is easy to remember and say aloud. "
+            + "Remove names, room-specific details, and one-off context unless they are essential to the correction. "
+            + "Prefer common phrasing such as \"I got distracted when I came in.\" over a literal or awkward answer.\n"
+                + "6. If a feedback block contains no actual correction or error, do not extract it. "
                 + "Extract only blocks where the learner's sentence needed correction.\n"
-                + "6. If the interface marks a sentence as correct but the sentence is still grammatically wrong, "
-                + "correct it yourself and include the corrected sentence.\n"
-                + "7. Output EXACTLY a JSON array of strings, where each string is a fully corrected sentence. "
+                + "7. If the interface marks a sentence as correct but the sentence is still grammatically wrong, "
+                + "correct and rewrite it yourself.\n"
+                + "8. Output EXACTLY a JSON array of strings, where each string is one reusable answer. "
             + "Do not include markdown, explanations, or any other text.";
 
         Map<String, Object> body = Map.of(
