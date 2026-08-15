@@ -54,4 +54,14 @@ public class EmailVerificationService {
         userRepository.save(user);
         tokenRepository.delete(verification);
     }
+
+    @Transactional
+    public void resend(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+        if (user.isEmailVerified()) {
+            throw new BadRequestException("Email is already verified");
+        }
+        sendVerification(user);
+    }
 }

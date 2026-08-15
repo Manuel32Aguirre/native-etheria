@@ -14,10 +14,10 @@ class AuthService {
       '/auth/register',
       body: {'username': username, 'email': email, 'password': password},
     );
-    await client.saveSession(
-      result['token'] as String,
-      result['userId'] as int,
-    );
+    final token = result['token'] as String?;
+    if (token != null && token.isNotEmpty) {
+      await client.saveSession(token, result['userId'] as int);
+    }
     return result as Map<String, dynamic>;
   }
 

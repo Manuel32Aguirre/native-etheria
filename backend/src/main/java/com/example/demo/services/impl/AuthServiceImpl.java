@@ -42,19 +42,21 @@ public class AuthServiceImpl implements AuthService {
         user = userRepository.save(user);
         emailVerificationService.sendVerification(user);
 
-        String token = jwtService.generateToken(user.getUsername(), user.getId());
-        return new AuthResponse(token, user.getId(), user.getUsername());
+        return new AuthResponse(null, user.getId(), user.getUsername(), true);
     }
 
     @Override
     public AuthResponse login(LoginRequest request) {
+        User user = userRepository.findByUsername(request.username())
+            .orElseThrow(() -> new BadRequestException("Invalid credentials"));
+        if (!user.isEmailVerified()) {
+            throw new BadRequestException("Email not verified. Check your inbox before signing in.");
+        }
+
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.username(), request.password()));
 
-        User user = userRepository.findByUsername(request.username())
-                .orElseThrow(() -> new BadRequestException("Invalid credentials"));
-
         String token = jwtService.generateToken(user.getUsername(), user.getId());
-        return new AuthResponse(token, user.getId(), user.getUsername());
+        return new AuthResponse(token, user.getId(), user.getUsername(), false);
     }
 }

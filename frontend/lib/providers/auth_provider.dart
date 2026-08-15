@@ -26,8 +26,27 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> login(String username, String password) =>
       _run(() => authService.login(username, password));
 
-  Future<bool> register(String username, String email, String password) =>
-      _run(() => authService.register(username, email, password));
+  Future<bool> register(String username, String email, String password) async {
+    _errorMessage = null;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final result = await authService.register(username, email, password);
+      if (result['verificationRequired'] == true) {
+        _errorMessage = 'Cuenta creada. Revisa tu correo y verifica la cuenta antes de entrar.';
+        _isAuthenticated = false;
+        return false;
+      }
+      _isAuthenticated = true;
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   Future<bool> _run(Future<Map<String, dynamic>> Function() action) async {
     _errorMessage = null;

@@ -1,1 +1,15 @@
 .env
+
+# Java/Maven
+**/target/
+**/*.log
+**/compile_output.txt
+
+# Flutter/Dart
+**/.dart_tool/
+**/.flutter-plugins-dependencies
+**/build/
+**/coverage/
+# IDE and local tooling
+.idea/
+*.iml

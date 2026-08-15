@@ -3,6 +3,7 @@ package com.example.demo.controllers;
 import com.example.demo.dto.AuthResponse;
 import com.example.demo.dto.LoginRequest;
 import com.example.demo.dto.RegisterRequest;
+import com.example.demo.dto.ResendVerificationRequest;
 import com.example.demo.services.AuthService;
 import com.example.demo.services.EmailVerificationService;
 import jakarta.validation.Valid;
@@ -32,5 +33,12 @@ public class AuthController {
     public ResponseEntity<String> verify(@RequestParam String token) {
         emailVerificationService.verify(token);
         return ResponseEntity.ok("Email verified. You can now log in.");
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<String> resendVerification(
+            @Valid @RequestBody ResendVerificationRequest request) {
+        emailVerificationService.resend(request.username());
+        return ResponseEntity.ok("Verification email sent");
     }
 }

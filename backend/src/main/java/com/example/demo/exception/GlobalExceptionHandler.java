@@ -26,7 +26,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Object> handleAuthentication(AuthenticationException ex) {
-        return build(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+        return build(HttpStatus.UNAUTHORIZED, "Invalid username or password");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
