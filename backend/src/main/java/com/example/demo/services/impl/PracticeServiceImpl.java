@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Normalizer;
+
 @Service
 @RequiredArgsConstructor
 public class PracticeServiceImpl implements PracticeService {
@@ -59,11 +61,11 @@ public class PracticeServiceImpl implements PracticeService {
         return sentence;
     }
 
-    /** Zero-tolerance comparison: trims, collapses whitespace and ignores case/trailing punctuation. */
+    /** Zero-tolerance word comparison that ignores punctuation Whisper cannot reliably transcribe. */
     private String normalize(String text) {
-        return text.trim()
-                .toLowerCase()
-                .replaceAll("[.,!?;:\"']", "")
+        return Normalizer.normalize(text, Normalizer.Form.NFKC)
+                .toLowerCase(java.util.Locale.ROOT)
+                .replaceAll("[\\p{P}\\p{S}]", "")
                 .replaceAll("\\s+", " ");
     }
 }

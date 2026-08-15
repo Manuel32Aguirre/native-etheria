@@ -43,6 +43,8 @@ class PracticeProvider extends ChangeNotifier {
   Timer? _silenceTimer;
   bool _voiceDetected = false;
   double _amplitude = -60;
+  int _sessionVersion = 0;
+  bool _isDisposed = false;
 
   PracticeProvider({
     required this.practiceService,
@@ -72,13 +74,20 @@ class PracticeProvider extends ChangeNotifier {
   Future<void> stopRecordingManually() => stopRecordingAndValidate();
 
   Future<void> startSession(List<Sentence> block) async {
+    await stopSession();
+    final sessionVersion = ++_sessionVersion;
     _block = block;
     _sentenceIndex = 0;
     _sessionComplete = false;
-    await _loadCurrentSentence();
+    await _loadCurrentSentence(sessionVersion);
   }
 
-  Future<void> _loadCurrentSentence() async {
+  bool _isCurrentSession(int sessionVersion) =>
+      !_isDisposed && sessionVersion == _sessionVersion;
+
+  Future<void> _loadCurrentSentence([int? requestedSessionVersion]) async {
+    final sessionVersion = requestedSessionVersion ?? _sessionVersion;
+    if (!_isCurrentSession(sessionVersion)) return;
     if (isBlockFinished) {
       _sessionComplete = true;
       notifyListeners();
@@ -94,26 +103,32 @@ class PracticeProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _question = await practiceService.getQuestion(currentSentence!.id);
+      if (!_isCurrentSession(sessionVersion)) return;
       _questionAudio = await practiceService.textToSpeech(
         _question,
         voice: settingsProvider.voice,
       );
-      await _speakAndStartListening();
+      if (!_isCurrentSession(sessionVersion)) return;
+      await _speakAndStartListening(sessionVersion);
     } catch (e) {
-      _errorMessage = e.toString();
+      if (_isCurrentSession(sessionVersion)) _errorMessage = e.toString();
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (_isCurrentSession(sessionVersion)) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> replayQuestionAudio() async {
-    await _speakAndStartListening();
+    await _speakAndStartListening(_sessionVersion);
   }
 
-  Future<void> _speakAndStartListening() async {
+  Future<void> _speakAndStartListening(int sessionVersion) async {
     final audio = _questionAudio;
-    if (audio == null || _isRecording) return;
+    if (!_isCurrentSession(sessionVersion) || audio == null || _isRecording) {
+      return;
+    }
 
     _phase = PracticePhase.speaking;
     _feedback = FeedbackState.none;
@@ -122,36 +137,51 @@ class PracticeProvider extends ChangeNotifier {
 
     try {
       await playerService.playBytesAndWait(audio);
-      if (_sessionComplete || currentSentence == null) return;
-      await startRecording();
+      if (!_isCurrentSession(sessionVersion) ||
+          _sessionComplete ||
+          currentSentence == null) {
+        return;
+      }
+      await startRecording(sessionVersion);
     } catch (e) {
-      _phase = PracticePhase.loading;
-      _errorMessage = e.toString();
-      notifyListeners();
+      if (_isCurrentSession(sessionVersion)) {
+        _phase = PracticePhase.loading;
+        _errorMessage = e.toString();
+        notifyListeners();
+      }
     }
   }
 
-  Future<void> startRecording() async {
+  Future<void> startRecording([int? requestedSessionVersion]) async {
+    final sessionVersion = requestedSessionVersion ?? _sessionVersion;
+    if (!_isCurrentSession(sessionVersion)) return;
     _feedback = FeedbackState.none;
     _errorMessage = null;
     try {
       await recorderService.start();
+      if (!_isCurrentSession(sessionVersion)) {
+        await recorderService.cancel();
+        return;
+      }
       _isRecording = true;
       _phase = PracticePhase.listening;
       _voiceDetected = false;
       _silenceTimer?.cancel();
       await _amplitudeSubscription?.cancel();
       _amplitudeSubscription = recorderService.amplitudeStream().listen(
-        _onAmplitude,
+        (sample) => _onAmplitude(sample, sessionVersion),
       );
       notifyListeners();
     } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
+      if (_isCurrentSession(sessionVersion)) {
+        _errorMessage = e.toString();
+        notifyListeners();
+      }
     }
   }
 
-  void _onAmplitude(Amplitude sample) {
+  void _onAmplitude(Amplitude sample, int sessionVersion) {
+    if (!_isCurrentSession(sessionVersion)) return;
     _amplitude = sample.current;
     final speaking = sample.current > -42;
     if (speaking) {
@@ -161,14 +191,15 @@ class PracticeProvider extends ChangeNotifier {
     } else if (_voiceDetected && _silenceTimer == null) {
       _silenceTimer = Timer(const Duration(milliseconds: 900), () {
         _silenceTimer = null;
-        if (_isRecording) stopRecordingAndValidate();
+        if (_isRecording) stopRecordingAndValidate(sessionVersion);
       });
     }
     notifyListeners();
   }
 
-  Future<void> stopRecordingAndValidate() async {
-    if (!_isRecording) return;
+  Future<void> stopRecordingAndValidate([int? requestedSessionVersion]) async {
+    final sessionVersion = requestedSessionVersion ?? _sessionVersion;
+    if (!_isCurrentSession(sessionVersion) || !_isRecording) return;
     _isRecording = false;
     await _amplitudeSubscription?.cancel();
     _amplitudeSubscription = null;
@@ -180,6 +211,7 @@ class PracticeProvider extends ChangeNotifier {
 
     try {
       final bytes = await recorderService.stop();
+      if (!_isCurrentSession(sessionVersion)) return;
       if (bytes == null) {
         _errorMessage = 'No audio was recorded';
         return;
@@ -190,16 +222,19 @@ class PracticeProvider extends ChangeNotifier {
         bytes,
         'answer.m4a',
       );
+      if (!_isCurrentSession(sessionVersion)) return;
       _lastTranscript = result.transcript;
 
       if (result.isExactMatch) {
         _feedback = FeedbackState.success;
         _correctRepetitions++;
         await playerService.playSuccess();
+        if (!_isCurrentSession(sessionVersion)) return;
 
         if (_correctRepetitions >= requiredRepetitions) {
           final sentence = currentSentence!;
           final review = await sentenceService.completeReview(sentence.id);
+          if (!_isCurrentSession(sessionVersion)) return;
           final nextReviewAt = review['nextReviewAt'] as String?;
           if (nextReviewAt != null) {
             await notificationService.scheduleReview(
@@ -207,30 +242,52 @@ class PracticeProvider extends ChangeNotifier {
               at: DateTime.parse(nextReviewAt),
               sentence: sentence.originalText,
             );
+            if (!_isCurrentSession(sessionVersion)) return;
           }
           _sentenceIndex++;
-          await _loadCurrentSentence();
+          await _loadCurrentSentence(sessionVersion);
         } else {
-          await _speakAndStartListening();
+          await _speakAndStartListening(sessionVersion);
         }
       } else {
         _feedback = FeedbackState.error;
         await playerService.playError();
-        await _speakAndStartListening();
+        if (!_isCurrentSession(sessionVersion)) return;
+        await _speakAndStartListening(sessionVersion);
       }
     } catch (e) {
-      _errorMessage = e.toString();
-      _phase = PracticePhase.loading;
+      if (_isCurrentSession(sessionVersion)) {
+        _errorMessage = e.toString();
+        _phase = PracticePhase.loading;
+      }
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (_isCurrentSession(sessionVersion)) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
+  }
+
+  Future<void> stopSession() async {
+    _sessionVersion++;
+    _isRecording = false;
+    _isLoading = false;
+    _silenceTimer?.cancel();
+    _silenceTimer = null;
+    await _amplitudeSubscription?.cancel();
+    _amplitudeSubscription = null;
+    await Future.wait([playerService.stop(), recorderService.cancel()]);
+    if (!_isDisposed) notifyListeners();
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
+    _sessionVersion++;
     _amplitudeSubscription?.cancel();
     _silenceTimer?.cancel();
+    playerService.stop();
+    recorderService.cancel();
     super.dispose();
   }
 }
