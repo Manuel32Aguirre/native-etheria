@@ -26,6 +26,11 @@ public class EmailVerificationService {
 
     @Transactional
     public void sendVerification(User user) {
+        tokenRepository.findByUser(user).ifPresent(existingToken -> {
+            tokenRepository.delete(existingToken);
+            tokenRepository.flush();
+        });
+
         String token = UUID.randomUUID().toString();
         tokenRepository.save(EmailVerificationToken.builder()
                 .token(token)
@@ -44,6 +49,9 @@ public class EmailVerificationService {
 
     @Transactional
     public void verify(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) {
+            throw new BadRequestException("Verification token is required");
+        }
         EmailVerificationToken verification = tokenRepository.findByToken(rawToken)
                 .orElseThrow(() -> new BadRequestException("Invalid verification token"));
         if (verification.getExpiresAt().isBefore(Instant.now())) {

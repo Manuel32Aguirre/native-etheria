@@ -6,6 +6,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -32,6 +33,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Object> handleValidation(MethodArgumentNotValidException ex) {
         return build(HttpStatus.BAD_REQUEST, "Validation failed: " + ex.getMessage());
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Object> handleMissingRequestParameter(MissingServletRequestParameterException ex) {
+        return build(HttpStatus.BAD_REQUEST, "Missing required parameter: " + ex.getParameterName());
     }
 
     @ExceptionHandler(Exception.class)

@@ -4,6 +4,7 @@ import com.example.demo.dto.AuthResponse;
 import com.example.demo.dto.LoginRequest;
 import com.example.demo.dto.RegisterRequest;
 import com.example.demo.dto.ResendVerificationRequest;
+import com.example.demo.exception.BadRequestException;
 import com.example.demo.services.AuthService;
 import com.example.demo.services.EmailVerificationService;
 import jakarta.validation.Valid;
@@ -30,7 +31,10 @@ public class AuthController {
     }
 
     @GetMapping("/verify")
-    public ResponseEntity<String> verify(@RequestParam String token) {
+    public ResponseEntity<String> verify(@RequestParam(required = false) String token) {
+        if (token == null || token.isBlank()) {
+            throw new BadRequestException("Verification token is required");
+        }
         emailVerificationService.verify(token);
         return ResponseEntity.ok("Email verified. You can now log in.");
     }

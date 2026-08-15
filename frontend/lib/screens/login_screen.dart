@@ -37,6 +37,14 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _resendVerification() async {
+    final username = _usernameController.text.trim();
+    if (username.isEmpty) {
+      return;
+    }
+    await context.read<AuthProvider>().resendVerification(username);
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -75,6 +83,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: const TextStyle(color: Colors.red),
                 ),
               ),
+            if (auth.noticeMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  auth.noticeMessage!,
+                  style: const TextStyle(color: Colors.green),
+                ),
+              ),
             FilledButton(
               onPressed: auth.isLoading ? null : _submit,
               child: auth.isLoading
@@ -94,6 +110,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     : '¿No tienes cuenta? Regístrate',
               ),
             ),
+            if (!_isRegisterMode)
+              TextButton(
+                onPressed: auth.isLoading ? null : _resendVerification,
+                child: const Text('Reenviar verificación'),
+              ),
           ],
         ),
       ),

@@ -8,6 +8,7 @@ class AuthProvider extends ChangeNotifier {
   bool _isAuthenticated = false;
   bool _isLoading = true;
   String? _errorMessage;
+  String? _noticeMessage;
 
   AuthProvider(this.authService) {
     _restoreSession();
@@ -16,6 +17,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  String? get noticeMessage => _noticeMessage;
 
   Future<void> _restoreSession() async {
     _isAuthenticated = await authService.isLoggedIn();
@@ -28,12 +30,13 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> register(String username, String email, String password) async {
     _errorMessage = null;
+    _noticeMessage = null;
     _isLoading = true;
     notifyListeners();
     try {
       final result = await authService.register(username, email, password);
       if (result['verificationRequired'] == true) {
-        _errorMessage = 'Cuenta creada. Revisa tu correo y verifica la cuenta antes de entrar.';
+        _noticeMessage = 'Cuenta creada. Revisa tu correo y verifica la cuenta antes de entrar.';
         _isAuthenticated = false;
         return false;
       }
@@ -50,6 +53,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> _run(Future<Map<String, dynamic>> Function() action) async {
     _errorMessage = null;
+    _noticeMessage = null;
     _isLoading = true;
     notifyListeners();
     try {
@@ -69,5 +73,21 @@ class AuthProvider extends ChangeNotifier {
     await authService.logout();
     _isAuthenticated = false;
     notifyListeners();
+  }
+
+  Future<void> resendVerification(String username) async {
+    _errorMessage = null;
+    _noticeMessage = null;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await authService.resendVerification(username);
+      _noticeMessage = 'Te enviamos un nuevo enlace de verificación.';
+    } catch (error) {
+      _errorMessage = error.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 }

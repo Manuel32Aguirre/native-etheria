@@ -94,7 +94,11 @@ class ApiClient {
   dynamic _handle(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (response.body.isEmpty) return null;
-      return jsonDecode(response.body);
+      if (response.headers['content-type']?.contains('application/json') ==
+          true) {
+        return jsonDecode(response.body);
+      }
+      return response.body;
     }
     throw ApiException(response.statusCode, response.body);
   }
@@ -107,5 +111,15 @@ class ApiException implements Exception {
   ApiException(this.statusCode, this.body);
 
   @override
-  String toString() => 'ApiException($statusCode): $body';
+  String toString() {
+    try {
+      final payload = jsonDecode(body);
+      if (payload is Map<String, dynamic> && payload['message'] is String) {
+        return payload['message'] as String;
+      }
+    } on FormatException {
+      // Non-JSON responses are already suitable for display.
+    }
+    return body.isNotEmpty ? body : 'Request failed ($statusCode)';
+  }
 }

@@ -10,6 +10,7 @@ class AuthService {
     String email,
     String password,
   ) async {
+    await client.clearSession();
     final result = await client.post(
       '/auth/register',
       body: {'username': username, 'email': email, 'password': password},
@@ -31,6 +32,13 @@ class AuthService {
       result['userId'] as int,
     );
     return result as Map<String, dynamic>;
+  }
+
+  Future<void> resendVerification(String username) async {
+    await client.post(
+      '/auth/resend-verification',
+      body: {'username': username},
+    );
   }
 
   Future<void> logout() => client.clearSession();
