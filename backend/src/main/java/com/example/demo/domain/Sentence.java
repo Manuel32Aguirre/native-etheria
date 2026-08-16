@@ -27,6 +27,9 @@ public class Sentence {
     @Column(nullable = false)
     private String originalText;
 
+    @Lob
+    private String practiceQuestion;
+
     @Builder.Default
     @Column(nullable = false)
     private int intervalIndex = 0;

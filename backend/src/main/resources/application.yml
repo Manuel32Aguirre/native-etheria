@@ -62,7 +62,7 @@ app:
 openai:
   api-key: ${OPENAI_API_KEY:}
   base-url: https://api.openai.com/v1
-  vision-model: ${OPENAI_VISION_MODEL:gpt-4o}
+  vision-model: ${OPENAI_VISION_MODEL:gpt-4o-mini}
   stt-model: ${OPENAI_STT_MODEL:whisper-1}
   tts-model: ${OPENAI_TTS_MODEL:tts-1}
   tts-voice: ${OPENAI_TTS_VOICE:alloy}

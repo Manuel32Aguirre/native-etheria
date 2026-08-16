@@ -75,6 +75,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
+                    const SizedBox(height: 8),
+                    _RepetitionSegments(
+                      completed: provider.correctRepetitions,
+                      total: provider.requiredRepetitions,
+                      isActive: provider.isRecording,
+                    ),
                     const SizedBox(height: 24),
                     Text(
                       'Pregunta:',
@@ -171,6 +177,47 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   ],
                 ),
         ),
+      ),
+    );
+  }
+}
+
+class _RepetitionSegments extends StatelessWidget {
+  final int completed;
+  final int total;
+  final bool isActive;
+
+  const _RepetitionSegments({
+    required this.completed,
+    required this.total,
+    required this.isActive,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: '$completed de $total repeticiones completadas',
+      child: Row(
+        children: List.generate(total, (index) {
+          final isCompleted = index < completed;
+          final isCurrent = index == completed && isActive;
+          final color = isCompleted
+              ? Colors.green
+              : isCurrent
+              ? colorScheme.primary
+              : colorScheme.outlineVariant;
+          return Expanded(
+            child: Container(
+              height: 6,
+              margin: EdgeInsets.only(right: index == total - 1 ? 0 : 3),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }

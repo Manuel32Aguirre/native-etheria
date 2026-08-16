@@ -22,10 +22,14 @@ public class PracticeServiceImpl implements PracticeService {
     private final OpenAiClient openAiClient;
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public QuestionResponse generateQuestion(Long userId, Long sentenceId) {
         Sentence sentence = findOwnedSentence(userId, sentenceId);
-        String question = openAiClient.generateVariableQuestion(sentence.getOriginalText());
+        String question = sentence.getPracticeQuestion();
+        if (question == null || question.isBlank()) {
+            question = openAiClient.generateVariableQuestion(sentence.getOriginalText());
+            sentence.setPracticeQuestion(question);
+        }
         return new QuestionResponse(sentence.getId(), question);
     }
 
@@ -65,7 +69,9 @@ public class PracticeServiceImpl implements PracticeService {
     private String normalize(String text) {
         return Normalizer.normalize(text, Normalizer.Form.NFKC)
                 .toLowerCase(java.util.Locale.ROOT)
-                .replaceAll("[\\p{P}\\p{S}]", "")
+                .replaceAll("['’]", "")
+                .replaceAll("[^\\p{L}\\p{N}]+", " ")
+                .trim()
                 .replaceAll("\\s+", " ");
     }
 }
