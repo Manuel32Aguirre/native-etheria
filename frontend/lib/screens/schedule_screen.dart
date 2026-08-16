@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../models/sentence.dart';
 import '../providers/sentence_provider.dart';
 import '../services/notification_service.dart';
+import '../theme/app_theme.dart';
 import '../utils/review_date_formatter.dart';
+import '../widgets/app_widgets.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
@@ -60,16 +62,18 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Eliminar frase'),
         content: const Text(
-          'Seguro que quieres eliminar esta frase? Esta acción no se puede deshacer.',
+          '¿Seguro que quieres eliminar esta frase? Esta acción no se puede deshacer.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancelar'),
           ),
-          FilledButton(
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar'),
+            icon: const Icon(Icons.delete_outline_rounded),
+            label: const Text('Eliminar'),
           ),
         ],
       ),
@@ -81,6 +85,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     final deleted = await sentences.deleteSentence(sentence.id);
     if (deleted) {
       await notifications.cancelReview(sentence.id);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            sentences.errorMessage ?? 'No se pudo eliminar la frase.',
+          ),
+        ),
+      );
     }
     return deleted;
   }
@@ -99,55 +111,82 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     return RefreshIndicator(
       onRefresh: _refresh,
       child: ListView(
-        padding: const EdgeInsets.all(16),
         children: [
-          if (!_notificationsEnabled)
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.notifications_off_outlined),
-                title: const Text('Reminders are disabled'),
-                subtitle: const Text(
-                  'Allow notifications to receive a reminder when a phrase is ready.',
+          ResponsiveContent(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Tu programa',
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
-                trailing: FilledButton(
-                  onPressed: _enableNotifications,
-                  child: const Text('Allow'),
+                const SizedBox(height: 6),
+                const Text('Repasos distribuidos para recordar a largo plazo.'),
+                const SizedBox(height: 20),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  child: !_notificationsEnabled
+                      ? StatusBanner(
+                          key: const ValueKey('disabled'),
+                          message: 'Activa las notificaciones para recibir avisos cuando una frase esté lista.',
+                          tone: StatusTone.warning,
+                          action: TextButton(
+                            onPressed: _enableNotifications,
+                            child: const Text('Activar'),
+                          ),
+                        )
+                      : const StatusBanner(
+                          key: ValueKey('enabled'),
+                          message: 'Los recordatorios están activos.',
+                          tone: StatusTone.success,
+                        ),
                 ),
-              ),
+                const SizedBox(height: 28),
+                SectionHeader(
+                  title: 'Próximos repasos',
+                  subtitle:
+                      '${scheduled.length} frase${scheduled.length == 1 ? '' : 's'} programada${scheduled.length == 1 ? '' : 's'}',
+                ),
+                const SizedBox(height: 12),
+                if (scheduled.isEmpty)
+                  const EmptyState(
+                    icon: Icons.event_available_outlined,
+                    title: 'Sin repasos pendientes',
+                    message: 'Cuando completes una práctica, los próximos repasos aparecerán aquí.',
+                  )
+                else
+                  ...scheduled.map(
+                    (sentence) => _SentenceRow(
+                      sentence: sentence,
+                      subtitle:
+                          '${formatReviewDate(sentence.nextReviewAt)} · ${formatTimeUntil(sentence.nextReviewAt)}',
+                      onConfirmDelete: () => _confirmDelete(sentence),
+                    ),
+                  ),
+                const SizedBox(height: 28),
+                SectionHeader(
+                  title: 'Dominadas',
+                  subtitle: '${completed.length} frases completadas',
+                ),
+                const SizedBox(height: 12),
+                if (completed.isEmpty)
+                  const EmptyState(
+                    icon: Icons.workspace_premium_outlined,
+                    title: 'Tu colección está creciendo',
+                    message: 'Las frases dominadas aparecerán aquí como registro de tu avance.',
+                  )
+                else
+                  ...completed.map(
+                    (sentence) => _SentenceRow(
+                      sentence: sentence,
+                      subtitle: 'Completada',
+                      onConfirmDelete: () => _confirmDelete(sentence),
+                    ),
+                  ),
+                const SizedBox(height: 90),
+              ],
             ),
-          const SizedBox(height: 16),
-          Text(
-            'Upcoming reminders',
-            style: Theme.of(context).textTheme.titleLarge,
           ),
-          const SizedBox(height: 8),
-          if (scheduled.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text('No phrases are scheduled right now.'),
-            )
-          else
-            ...scheduled.map(
-              (sentence) => _SentenceRow(
-                sentence: sentence,
-                subtitle:
-                    '${formatReviewDate(sentence.nextReviewAt)} · ${formatTimeUntil(sentence.nextReviewAt)}',
-                onConfirmDelete: () => _confirmDelete(sentence),
-              ),
-            ),
-          const SizedBox(height: 24),
-          Text('Completed', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          if (completed.isEmpty)
-            const Text('Completed phrases will appear here.')
-          else
-            ...completed.map(
-              (sentence) => _SentenceRow(
-                sentence: sentence,
-                subtitle: 'Completed',
-                onConfirmDelete: () => _confirmDelete(sentence),
-              ),
-            ),
         ],
       ),
     );
@@ -174,18 +213,44 @@ class _SentenceRow extends StatelessWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
-        color: Theme.of(context).colorScheme.error,
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: AppColors.error,
+          borderRadius: BorderRadius.circular(AppRadii.md),
+        ),
         child: Icon(
           Icons.delete_outline,
           color: Theme.of(context).colorScheme.onError,
         ),
       ),
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        child: ListTile(
-          leading: Icon(sentence.isMastered ? Icons.check_circle : Icons.alarm),
-          title: Text(sentence.originalText),
-          subtitle: Text(subtitle),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: MatteCard(
+          child: Row(
+            children: [
+              AppIconContainer(
+                icon: sentence.isMastered
+                    ? Icons.check_rounded
+                    : Icons.schedule_rounded,
+                color: sentence.isMastered ? AppColors.success : AppColors.clay,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      sentence.originalText,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 5),
+                    Text(subtitle),
+                  ],
+                ),
+              ),
+              const Icon(Icons.drag_handle_rounded, color: AppColors.outline),
+            ],
+          ),
         ),
       ),
     );

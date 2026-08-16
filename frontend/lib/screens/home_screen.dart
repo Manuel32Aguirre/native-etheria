@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import '../models/sentence.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/sentence_provider.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_widgets.dart';
 import 'practice_screen.dart';
 import 'schedule_screen.dart';
 import 'settings_screen.dart';
@@ -80,57 +82,84 @@ class _HomeScreenState extends State<HomeScreen> {
         });
   }
 
+  void _showAddSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SectionHeader(
+                title: 'Añadir frases',
+                subtitle: 'Importa texto desde una foto o hasta 5 imágenes.',
+              ),
+              const SizedBox(height: 20),
+              MatteCard(
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _takePhoto();
+                },
+                child: const _SheetChoice(
+                  icon: Icons.camera_alt_outlined,
+                  title: 'Tomar una foto',
+                  subtitle: 'Captura una página o una frase',
+                ),
+              ),
+              const SizedBox(height: 10),
+              MatteCard(
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickImagesFromGallery();
+                },
+                child: const _SheetChoice(
+                  icon: Icons.photo_library_outlined,
+                  title: 'Elegir de la galería',
+                  subtitle: 'Selecciona hasta 5 imágenes a la vez',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<SentenceProvider>();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _selectedTab == 0 ? 'Native – Memorización Activa' : 'Programa',
+        title: const Row(
+          children: [
+            AppIconContainer(icon: Icons.graphic_eq_rounded, size: 40),
+            SizedBox(width: 12),
+            Text('Native Etheria'),
+          ],
         ),
         actions: [
           IconButton(
             tooltip: 'Configuración',
-            icon: const Icon(Icons.settings),
+            icon: const Icon(Icons.tune_rounded),
             onPressed: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _selectedTab == 0
-            ? () => showModalBottomSheet(
-                context: context,
-                builder: (_) => SafeArea(
-                  child: Wrap(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.camera_alt),
-                        title: const Text('Tomar foto'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          _takePhoto();
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.photo_library),
-                        title: const Text('Elegir hasta 5 imágenes'),
-                        subtitle: const Text(
-                          'Puedes seleccionar varias capturas a la vez',
-                        ),
-                        onTap: () {
-                          Navigator.pop(context);
-                          _pickImagesFromGallery();
-                        },
-                      ),
-                    ],
-                  ),
-                ),
+      floatingActionButton: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        child: _selectedTab == 0
+            ? FloatingActionButton.extended(
+                key: const ValueKey('add'),
+                onPressed: _showAddSheet,
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+                label: const Text('Añadir frases'),
               )
-            : null,
-        child: const Icon(Icons.add_a_photo),
+            : const SizedBox.shrink(key: ValueKey('none')),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: NavigationBar(
@@ -149,75 +178,258 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _selectedTab == 1
-          ? const ScheduleScreen()
-          : RefreshIndicator(
-              onRefresh: provider.refreshBlock,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (provider.isLoading) const LinearProgressIndicator(),
-                  if (provider.errorMessage != null)
-                    Text(
-                      provider.errorMessage!,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  Text(
-                    'Bloque Actual',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  if (provider.currentBlock.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        'No hay oraciones listas para practicar en este momento.',
-                      ),
-                    )
-                  else
-                    Card(
-                      child: Column(
-                        children: provider.currentBlock
-                            .map(
-                              (s) => ListTile(
-                                leading: const Icon(Icons.menu_book),
-                                title: Text(s.originalText),
-                                subtitle: Text(
-                                  'Intervalo #${s.intervalIndex} · Próximo repaso: ${formatReviewDate(s.nextReviewAt)}',
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: provider.currentBlock.isEmpty
-                        ? null
-                        : () => _startPractice(provider.currentBlock),
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text('Iniciar sesión de práctica'),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Cola de Espera',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.hourglass_bottom),
-                      title: Text(
-                        '${provider.pendingNowCount} oraciones en espera (PENDING_NOW)',
-                      ),
-                      subtitle: const Text(
-                        'Se procesarán en el próximo bloque disponible.',
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 260),
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween(
+              begin: const Offset(.02, 0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        ),
+        child: _selectedTab == 1
+            ? const ScheduleScreen(key: ValueKey('schedule'))
+            : _PracticeHome(
+                key: const ValueKey('practice'),
+                provider: provider,
+                onStart: () => _startPractice(provider.currentBlock),
+              ),
+      ),
+    );
+  }
+}
+
+class _PracticeHome extends StatelessWidget {
+  final SentenceProvider provider;
+  final VoidCallback onStart;
+
+  const _PracticeHome({
+    super.key,
+    required this.provider,
+    required this.onStart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final mastered = provider.history.where((item) => item.isMastered).length;
+    return RefreshIndicator(
+      onRefresh: provider.refreshBlock,
+      child: ListView(
+        children: [
+          ResponsiveContent(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Hola,', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  '¿Listo para recordar?',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatCard(
+                        value: '${provider.currentBlock.length}',
+                        label: 'Para practicar',
+                        icon: Icons.bolt_rounded,
+                        color: AppColors.clay,
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _StatCard(
+                        value: '$mastered',
+                        label: 'Dominadas',
+                        icon: Icons.check_rounded,
+                        color: AppColors.success,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _StatCard(
+                        value: '${provider.pendingNowCount}',
+                        label: 'En espera',
+                        icon: Icons.schedule_rounded,
+                        color: AppColors.teal,
+                      ),
+                    ),
+                  ],
+                ),
+                if (provider.isLoading) ...[
+                  const SizedBox(height: 18),
+                  const LinearProgressIndicator(
+                    borderRadius: BorderRadius.all(Radius.circular(8)),
                   ),
                 ],
-              ),
+                if (provider.errorMessage != null) ...[
+                  const SizedBox(height: 18),
+                  StatusBanner(
+                    message: provider.errorMessage!,
+                    tone: StatusTone.error,
+                  ),
+                ],
+                const SizedBox(height: 28),
+                const SectionHeader(
+                  title: 'Tu bloque de hoy',
+                  subtitle: 'Un grupo breve para practicar con intención.',
+                ),
+                const SizedBox(height: 12),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  child: provider.currentBlock.isEmpty
+                      ? const EmptyState(
+                          key: ValueKey('empty'),
+                          icon: Icons.auto_awesome_outlined,
+                          title: 'Todo al día',
+                          message: 'No hay frases listas ahora. Añade nuevas o vuelve más tarde.',
+                        )
+                      : Column(
+                          key: const ValueKey('phrases'),
+                          children: provider.currentBlock
+                              .map(
+                                (sentence) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: MatteCard(
+                                    child: Row(
+                                      children: [
+                                        const AppIconContainer(
+                                          icon: Icons.format_quote_rounded,
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                sentence.originalText,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .titleMedium,
+                                              ),
+                                              const SizedBox(height: 5),
+                                              Text(
+                                                'Nivel ${sentence.intervalIndex} · ${formatReviewDate(sentence.nextReviewAt)}',
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                ),
+                const SizedBox(height: 4),
+                FilledButton.icon(
+                  onPressed: provider.currentBlock.isEmpty ? null : onStart,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('Comenzar práctica'),
+                ),
+                const SizedBox(height: 28),
+                const SectionHeader(title: 'Cola de espera'),
+                const SizedBox(height: 12),
+                MatteCard(
+                  color: AppColors.surfaceMuted,
+                  child: Row(
+                    children: [
+                      const AppIconContainer(
+                        icon: Icons.hourglass_bottom_rounded,
+                        color: AppColors.clay,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${provider.pendingNowCount} frases esperando',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Entrarán en el próximo bloque disponible.',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 90),
+              ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String value;
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const _StatCard({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return MatteCard(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 10),
+          Text(value, style: Theme.of(context).textTheme.titleLarge),
+          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetChoice extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _SheetChoice({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        AppIconContainer(icon: icon),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              Text(subtitle),
+            ],
+          ),
+        ),
+        const Icon(Icons.chevron_right_rounded),
+      ],
     );
   }
 }

@@ -15,6 +15,7 @@ import 'services/practice_service.dart';
 import 'services/sentence_service.dart';
 import 'services/settings_service.dart';
 import 'services/notification_service.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   runApp(const NativeApp());
@@ -61,36 +62,8 @@ class NativeApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'Native – Memorización Activa',
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF0E7490),
-            brightness: Brightness.light,
-          ),
-          scaffoldBackgroundColor: const Color(0xFFF4F7F8),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFFF4F7F8),
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            centerTitle: false,
-          ),
-          cardTheme: CardThemeData(
-            elevation: 0,
-            margin: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(18)),
-              side: BorderSide(color: Color(0xFFDCE7EA)),
-            ),
-          ),
-          inputDecorationTheme: const InputDecorationTheme(
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(14)),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
         home: const AuthGate(),
       ),
     );
@@ -105,7 +78,59 @@ class AuthGate extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
 
     if (auth.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        body: Center(
+          child: TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 700),
+            tween: Tween(begin: 0, end: 1),
+            builder: (context, value, child) => Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 12 * (1 - value)),
+                child: child,
+              ),
+            ),
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.teal,
+                    borderRadius: BorderRadius.all(Radius.circular(24)),
+                  ),
+                  child: SizedBox(
+                    width: 74,
+                    height: 74,
+                    child: Icon(
+                      Icons.graphic_eq_rounded,
+                      color: Colors.white,
+                      size: 38,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 22),
+                Text(
+                  'Native Etheria',
+                  style: TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text('Restaurando tu espacio de práctica…'),
+                SizedBox(height: 24),
+                SizedBox(
+                  width: 120,
+                  child: LinearProgressIndicator(
+                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
 
     return auth.isAuthenticated ? const HomeScreen() : const LoginScreen();

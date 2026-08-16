@@ -34,10 +34,14 @@ services:
       WHISPER_COMPUTE_TYPE: int8
       WHISPER_DEVICE: cpu
       WHISPER_LANGUAGE: ${STT_LANGUAGE:-en}
+      WHISPER_CPU_THREADS: ${WHISPER_CPU_THREADS:-1}
+      OMP_NUM_THREADS: ${WHISPER_CPU_THREADS:-1}
     # Keep this low for Lightsail $7. Raise only if the instance has free RAM.
     mem_limit: 450m
     ports:
       - "127.0.0.1:9000:9000"
+    volumes:
+      - native_stt_models:/root/.cache/huggingface
     networks:
       - native_network
 
@@ -64,6 +68,7 @@ services:
 
 volumes:
   native_pg_data:
+  native_stt_models:
 
 networks:
   native_network:
