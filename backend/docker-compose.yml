@@ -38,7 +38,7 @@ services:
       WHISPER_BEAM_SIZE: ${WHISPER_BEAM_SIZE:-5}
       OMP_NUM_THREADS: ${WHISPER_CPU_THREADS:-1}
     # "base" needs more room than "tiny". Lower this again if the host OOMs.
-    mem_limit: 700m
+    mem_limit: 2g
     ports:
       - "127.0.0.1:9000:9000"
     volumes:

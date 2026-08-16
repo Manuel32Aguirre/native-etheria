@@ -2792,3 +2792,362 @@ _**User**_
 
 No sé si es el modelo, que no reconoce bien, siento que se está equivocando el whisper de python
 aumenta el nivel aunque suba un poco la latencia, y tambien quiero que se imprima en consola del lightsail la oracion, es decir cuando yo haga docker compose logs -f, ahi quiero ver lo que detectó que dije, para ver que está haciendo
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The user wants a larger model for better accuracy and transcript logging. I'm weighing the memory constraints—we're already at 911MB RAM with 897MB swap used, so upgrading from tiny to small could risk an out-of-memory error since small int8 needs around 500MB+. The base model would be safer at 150-250MB, though they mentioned accepting some latency increase. I'm leaning toward setting base as the default while offering small as an option, or potentially configuring small with a higher memory limit if feasible.
+
+Now I'm planning the implementation: set the Whisper model default to base, increase the memory limit to 700MB, and make beam_size configurable with a default of 5 for better accuracy. I'll also add transcript logging prominently in the Python service so it shows up in the Docker logs, plus log duration, language, and detected segments. I should also add this logging to the Spring backend for visibility. I'll update the docker-compose configuration, environment variables, and documentation to reflect these changes.
+
+There's a memory concern though—the system has 911MB total with 757MB currently used, so raising to 700MB for the STT service might risk OOM, but swap should help. More importantly, users have WHISPER_MODEL=tiny hardcoded in their .env file, which will override the new default, so I need to explicitly tell them to update it to base manually.
+</details></think>
+
+_**Agent (default)**_
+
+Subo el modelo y agrego logging del texto reconocido.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\stt-service\app\main.py</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\stt-service\app\main.py</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\stt-service\app\main.py</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\stt-service\app\main.py</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+Ahora el backend también registra la comparación, para ver por qué falla un intento.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\PracticeServiceImpl.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\PracticeServiceImpl.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\PracticeServiceImpl.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\docker-compose.yml</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\.env.example</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2** • Run command: .\mvnw.cmd -q -DskipTests compile</summary>
+```bash
+.\mvnw.cmd -q -DskipTests compile
+```
+</details></tool-use>
+
+_**Agent (default)**_
+
+Hecho. Subí precisión y agregué logs.
+
+**Cambios de precisión**
+- Modelo: `tiny` → `base`
+- `beam_size` 1 → 5 (mejor decodificación)
+- `best_of` 5 y fallback de temperatura
+- `condition_on_previous_text=False` (evita que arrastre errores)
+- `mem_limit` del STT: 450m → 700m
+
+**Logs nuevos**
+
+En `stt`:
+
+```text
+============================================================
+HEARD: I got distracted when I came in.
+audio=8.4s | transcribe=6.1s | model=base | lang=en
+============================================================
+```
+
+En `native`:
+
+```text
+HEARD    : I got distracted when I came in
+EXPECTED : I got distracted when I came in.
+MATCH    : true
+```
+
+**Importante:** tu `backend/.env` tiene `WHISPER_MODEL=tiny` y eso pisa el default. Cámbialo:
+
+```dotenv
+WHISPER_MODEL=base
+WHISPER_BEAM_SIZE=5
+WHISPER_CPU_THREADS=1
+```
+
+Despliega:
+
+```bash
+cd ~/native-etheria/backend
+git pull
+docker compose up -d --build stt native
+docker compose logs -f stt native
+```
+
+La primera vez descargará el modelo `base` (~140 MB); ya queda cacheado en volumen.
+
+Ojo con la RAM: `base` es más pesado. Si ves que el contenedor muere, vigila con `docker stats` y podemos bajar a `tiny` con `beam_size=5`, que ya mejora bastante sin costar memoria.
+
+---
+
+_**User**_
+
+cual sería la mejor configuracion olvidate de la ram, vale? suponiendo que tengo ram para moverle a la congiguracion? o solo bastas con cambiar alguna var de entorno?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+El usuario busca la mejor configuración de Whisper/STT sin limitaciones de RAM. Quiere saber si bastan cambios en variables de entorno o si necesita ajustar otros parámetros.
+
+Las variables de entorno ya permiten configurar todo lo necesario. Para la mejor precisión con RAM suficiente en CPU se recomienda usar modelos pequeños o medianos como `small.en` o `medium.en`. El modelo `large-v3` es más exacto pero muy lento en procesadores.
+
+Para CPU sin GPU, `int8` es el mejor balance entre velocidad y precisión. `float32` mejora la calidad pero ralentiza los procesos. Con RAM ilimitada en Lightsail se puede subir `beam_size` hasta 10. También conviene revisar el límite de memoria en `docker-compose`.
+
+Los modelos específicos para inglés son `small.en`, `medium.en` y `distil-large-v3`. Este último ofrece calidad cercana a `large-v3` con mayor velocidad. No hace falta modificar código; bastan las variables de entorno.
+</details></think>
+
+_**Agent (default)**_
+
+Sí: casi todo se controla con variables de entorno. No hace falta tocar código.
+
+## Mejor config (con RAM de sobra, CPU)
+
+En `backend/.env`:
+
+```dotenv
+WHISPER_MODEL=medium
+WHISPER_BEAM_SIZE=5
+WHISPER_COMPUTE_TYPE=int8
+WHISPER_CPU_THREADS=2
+WHISPER_LANGUAGE=en
+```
+
+Y en `docker-compose` (o al subir el servicio), sube el límite de memoria del contenedor:
+
+```yaml
+mem_limit: 2g
+```
+
+Luego:
+
+```bash
+docker compose up -d --build stt
+```
+
+## Escala de calidad → lentitud
+
+| Modelo | Calidad | Velocidad en CPU | RAM aprox. |
+|--------|---------|------------------|------------|
+| `tiny` | Baja | Muy rápida | ~1 GB |
+| `base` | Aceptable | Rápida | ~1 GB |
+| `small` | Buena | Media | ~1.5–2 GB |
+| **`medium`** | **Muy buena** | Lenta | ~2–3 GB |
+| `large-v3` | La mejor | Muy lenta | ~4–5 GB+ |
+
+Para tu app (inglés hablado, párrafos): **`medium`** es el mejor balance.  
+`large-v3` gana un poco más de precisión, pero en un Lightsail sin GPU puede tardar demasiado por intento.
+
+## Si quieres exprimir inglés
+
+Como practicas solo inglés, a veces conviene más:
+
+```dotenv
+WHISPER_MODEL=medium.en
+```
+
+o incluso:
+
+```dotenv
+WHISPER_MODEL=distil-large-v3
+```
+
+(`distil-large-v3` ≈ calidad near-large, más rápido que `large-v3`).
+
+## Resumen
+
+1. Cambia env vars (sobre todo `WHISPER_MODEL=medium`).
+2. Sube `mem_limit` del contenedor STT.
+3. Rebuild solo `stt`.
+
+No hace falta cambiar Python ni Spring para eso.
+
+---
+
+_**User**_
+
+asi?
+@.env (1-28) 
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+El usuario pregunta si su configuración en .env es correcta para los mejores ajustes de Whisper.
+
+Faltan STT_LANGUAGE y WHISPER_COMPUTE_TYPE. El límite de memoria de Docker es de 700 MB, probablemente insuficiente para el modelo medium.en. También se detectaron secretos expuestos en el mensaje.
+
+La configuración es correcta. Hay que actualizar el límite de memoria en docker-compose para medium.en y reconstruir el contenedor.
+</details></think>
+
+_**Agent (default)**_
+
+Sí, eso está bien para precisión en inglés.
+
+Solo te faltan dos cosas prácticas:
+
+1. **Sube la memoria del contenedor STT** — `medium.en` no cabe cómodo en `700m`. En `docker-compose.yml`:
+
+```yaml
+mem_limit: 2g
+```
+
+2. **Redeploy** (si no, sigue el modelo viejo en memoria):
+
+```bash
+docker compose up -d --build stt
+docker compose logs -f stt
+```
+
+Deberías ver algo como `Loading Whisper model=medium.en`.
+
+Opcional (ya tiene defaults razonables):
+
+```dotenv
+STT_LANGUAGE=en
+WHISPER_COMPUTE_TYPE=int8
+```
+
+Con lo que tienes (`medium.en` + `beam=5`) ya vas a la configuración fuerte en CPU.
+
+---
+
+_**User**_
+
+asi?
+@.env (1-30) 
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+El usuario solicita confirmación sobre el archivo .env.
+
+La configuración del .env es correcta. Se agregaron STT_LANGUAGE y WHISPER_COMPUTE_TYPE. Recuerda revisar el mem_limit en docker-compose y no pegar secretos.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria\\backend\\docker-compose.yml",
+  "pattern": "mem_limit|WHISPER_MODEL"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria\\backend\\docker-compose.yml",
+  "pattern": "mem_limit|WHISPER_MODEL",
+  "topFiles": [
+    {
+      "matchCount": 3,
+      "uri": "backend\\docker-compose.yml"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 3
+}
+```
+Status: **completed**
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Ya existe `mem_limit: 2g` en el docker-compose.
+
+El archivo .env está correcto.
+</details></think>
+
+_**Agent (default)**_
+
+Sí, perfecto.
+
+Tienes lo esencial:
+
+- `WHISPER_MODEL=medium.en`
+- `WHISPER_BEAM_SIZE=5`
+- `WHISPER_COMPUTE_TYPE=int8`
+- `STT_LANGUAGE=en`
+- y en compose ya está `mem_limit: 2g`
+
+Solo falta recrear el servicio:
+
+```bash
+docker compose up -d --build stt
+docker compose logs -f stt
+```
+
+Confirma en logs: `Loading Whisper model=medium.en`.
