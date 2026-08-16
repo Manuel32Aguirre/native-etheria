@@ -3151,3 +3151,202 @@ docker compose logs -f stt
 ```
 
 Confirma en logs: `Loading Whisper model=medium.en`.
+
+---
+
+_**User**_
+
+se detuvo la instancia jaja
+
+y solo intente loguearme
+
+debo reducir alguna var de entorno? o algo en el docker compose?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+La instancia se detuvo al intentar iniciar sesión. Probablemente se agotó la memoria al cargar el medio. Revisaré si hay que ajustar variables de entorno o el Docker Compose.
+
+El modelo Whisper es demasiado pesado para los ~1 GB de RAM de la instancia. El límite de 2 GB en Docker supera la memoria del host y provoca el OOM. Hay que reducir WHISPER_MODEL a una versión ligera como base o small. También hay que bajar el mem_limit en Docker para que no exceda la RAM del host. Quizás convenga reducir el heap de Java también. Ambos cambios en variables de entorno y docker-compose son necesarios.
+</details></think>
+
+_**Agent (default)**_
+
+Sí: `medium.en` + `mem_limit: 2g` en una máquina de ~1 GB de RAM es demasiado. El contenedor puede consumir más de lo que tiene el host y tumbar la instancia.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\docker-compose.yml</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Ajustaré docker-compose con valores por defecto más seguros para una instancia de 1 GB de Lightsail.
+
+Limitaré la memoria de STT a 450–500 MB y la heap de Java a 192 MB. El modelo recomendado es tiny.en con beam 5. Configuraré estos límites en docker-compose y en el archivo .env.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\docker-compose.yml</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Hay que actualizar .env.example para advertir contra usar medium en instancias pequeñas.
+
+Cambiar en el .env las variables de medium a base.
+</details></think>
+
+_**Agent (default)**_
+
+Sí: hay que bajar **ambos**.
+
+`medium.en` + `mem_limit: 2g` en un Lightsail de ~1 GB intentaba usar más RAM de la que existe. Eso tumba la instancia incluso al arrancar (no hace falta practicar).
+
+## En tu `.env` (Lightsail)
+
+Cambia a:
+
+```dotenv
+WHISPER_MODEL=base
+WHISPER_BEAM_SIZE=5
+WHISPER_CPU_THREADS=1
+STT_LANGUAGE=en
+WHISPER_COMPUTE_TYPE=int8
+```
+
+**No uses** `medium` / `medium.en` / `large` en esa máquina.
+
+## En `docker-compose.yml`
+
+Ya lo ajusté a límites seguros para ~1 GB:
+
+| Servicio | Antes | Ahora |
+|----------|------:|------:|
+| `stt` | 2g | **480m** |
+| `native` | sin límite / Java 256m | **320m** / Java 192m |
+| `postgres` | 256m | **192m** |
+
+## Cuando vuelva la instancia
+
+```bash
+cd ~/native-etheria/backend
+git pull
+# edita .env: WHISPER_MODEL=base
+docker compose up -d --build
+docker stats --no-stream
+```
+
+Si quieres más precisión sin matar el servidor, la opción real es **subir el plan de Lightsail** (2–4 GB). En 1 GB, `base` + `beam=5` es el techo razonable.
+
+---
+
+_**User**_
+
+mmm y que tal asi?
+@.env (1-30) 
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+El usuario pregunta si small.en es adecuado para su instancia Lightsail de ~1 GB.
+
+small.en es un riesgo en una instancia de 911 Mi de RAM. Es más seguro que medium pero menos que base. Con mem_limit: 480m el contenedor se mataría si excede ese límite sin apagar la instancia. Podría fallar al iniciar por falta de memoria.
+
+small.en con int8 suele necesitar más de 1 GB. Con 480 MB probablemente no cargue. Conviene subir el límite a 550–600 MB o quedarse con base. Si prueba small.en, debe monitorizar los stats de Docker.
+</details></think>
+
+_**Agent (default)**_
+
+`small.en` está **en el límite**. Mejor que `medium` (no debería tumbar toda la instancia con `mem_limit: 480m`), pero puede fallar al cargar el modelo.
+
+| Modelo | En tu Lightsail ~1 GB |
+|--------|------------------------|
+| `base` | Seguro |
+| **`small.en`** | **Posible, ajustado** |
+| `medium.en` | Ya te tumbó la máquina |
+
+Si quieres probarlo:
+
+1. Déjalo en `.env` como lo tienes.
+2. Confirma en compose `mem_limit: 480m` (no 2g).
+3. Arranca y mira:
+
+```bash
+docker compose up -d --build stt
+docker compose logs -f stt
+docker stats --no-stream
+```
+
+- Si ves `Whisper model ready` → ok, úsalo.
+- Si el contenedor se reinicia / OOM → baja a `WHISPER_MODEL=base`.
+
+Recomendación práctica: empieza con **`base`**. Si va estable un rato, sube a `small.en`. No saltes otra vez a `medium`.
+
+---
+
+_**User**_
+
+puse mem lim 700m y ve este es mi .env
+probemos asi
+@.env (1-30) 
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Probaré small.en con límite de memoria de 700 MB.
+
+700 MB es agresivo para una máquina de 1 GB. El total de contenedores supera el límite teórico, pero Docker solo limita la reserva y el swap cubre picos. Aún así existe riesgo de OOM si todos los procesos suben al mismo tiempo. Procederé con una prueba breve y clara señales de éxito o fallo. No modificaré su archivo .env porque contiene secretos.
+
+También recordaré brevemente que no deben pegar secretos en el chat.
+</details></think>
+
+_**Agent (default)**_
+
+Vale, probemos así: `small.en` + `700m` es agresivo, pero más seguro que `medium` + `2g`.
+
+Al arrancar mira esto:
+
+```bash
+docker compose up -d --build stt
+docker compose logs -f stt
+```
+
+**Bien si ves:**
+- `Loading Whisper model=small.en`
+- `Whisper model ready`
+
+**Mal si ves:**
+- reinicios del contenedor
+- `Killed` / OOM
+- la instancia se pone lenta o se cae
+
+En paralelo:
+
+```bash
+docker stats --no-stream
+free -h
+```
+
+Si se cae, baja a:
+
+```dotenv
+WHISPER_MODEL=base
+```
+
+y `mem_limit: 480m`.
+
+Si aguanta el login + una práctica con logs `HEARD: ...`, déjalo en `small.en`.

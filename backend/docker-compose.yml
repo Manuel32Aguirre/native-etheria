@@ -12,9 +12,10 @@ services:
       DB_PORT: 5432
       STT_PROVIDER: ${STT_PROVIDER:-local}
       STT_LOCAL_URL: ${STT_LOCAL_URL:-http://stt:9000}
-      JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m"
+      JAVA_TOOL_OPTIONS: "-Xms48m -Xmx192m"
     ports:
       - "8080:8080"
+    mem_limit: 320m
     depends_on:
       postgres:
         condition: service_healthy
@@ -31,14 +32,14 @@ services:
     restart: unless-stopped
     environment:
       WHISPER_MODEL: ${WHISPER_MODEL:-base}
-      WHISPER_COMPUTE_TYPE: int8
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
       WHISPER_DEVICE: cpu
       WHISPER_LANGUAGE: ${STT_LANGUAGE:-en}
       WHISPER_CPU_THREADS: ${WHISPER_CPU_THREADS:-1}
       WHISPER_BEAM_SIZE: ${WHISPER_BEAM_SIZE:-5}
       OMP_NUM_THREADS: ${WHISPER_CPU_THREADS:-1}
-    # "base" needs more room than "tiny". Lower this again if the host OOMs.
-    mem_limit: 2g
+    # Host only has ~1 GB RAM. Never set this above ~500m on Lightsail $7.
+    mem_limit: 700m
     ports:
       - "127.0.0.1:9000:9000"
     volumes:
@@ -56,7 +57,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-native_password}
     ports:
       - "127.0.0.1:5432:5432"
-    mem_limit: 256m
+    mem_limit: 192m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${DB_USERNAME:-native_user} -d $${DB_NAME:-native_db}"]
       interval: 10s
