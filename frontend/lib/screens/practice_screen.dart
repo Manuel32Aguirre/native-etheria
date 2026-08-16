@@ -120,6 +120,16 @@ class _PracticeScreenState extends State<PracticeScreen> {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     const Spacer(),
+                    if (provider.isRecording && provider.liveCaption.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          provider.liveCaption,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontStyle: FontStyle.italic),
+                        ),
+                      ),
                     if (provider.lastTranscript != null)
                       Text(
                         'Escuché: "${provider.lastTranscript}"',
@@ -131,9 +141,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
                       Column(
                         children: [
                           LinearProgressIndicator(
-                            value: ((provider.amplitude + 60) / 60).clamp(0, 1),
-                            minHeight: 10,
-                            color: Colors.red,
+                            minHeight: 6,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           const SizedBox(height: 8),
                           GestureDetector(
@@ -149,7 +158,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text('Toca para detener o espera al silencio'),
+                          const Text('Toca para detener cuando termines'),
                         ],
                       )
                     else
@@ -170,7 +179,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     const SizedBox(height: 8),
                     Text(
                       provider.isRecording
-                          ? 'Habla con naturalidad; se enviará al detectar silencio'
+                          ? 'Tu voz aparecerá aquí mientras hablas'
                           : 'El micrófono se activa automáticamente',
                       textAlign: TextAlign.center,
                     ),

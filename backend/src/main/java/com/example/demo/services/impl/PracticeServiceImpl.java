@@ -43,6 +43,17 @@ public class PracticeServiceImpl implements PracticeService {
         Sentence sentence = findOwnedSentence(userId, sentenceId);
         String transcript = openAiClient.transcribeAudio(audioBytes, filename);
 
+        return validateTranscript(userId, sentenceId, transcript);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AudioValidationResponse validateTranscript(Long userId, Long sentenceId, String transcript) {
+        if (transcript == null || transcript.isBlank()) {
+            throw new BadRequestException("No speech was recognized");
+        }
+
+        Sentence sentence = findOwnedSentence(userId, sentenceId);
         boolean isExactMatch = normalize(transcript).equals(normalize(sentence.getOriginalText()));
 
         return new AudioValidationResponse(isExactMatch, transcript, sentence.getOriginalText());

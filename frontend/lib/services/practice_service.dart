@@ -34,6 +34,17 @@ class PracticeService {
     );
   }
 
+  Future<AudioValidationResult> validateTranscript(
+    int sentenceId,
+    String transcript,
+  ) async {
+    final result = await client.post(
+      '/practice/$sentenceId/validate-text',
+      body: {'transcript': transcript},
+    );
+    return AudioValidationResult.fromJson(result as Map<String, dynamic>);
+  }
+
   Future<Uint8List> textToSpeech(String text, {String? voice}) async {
     final body = <String, dynamic>{'text': text};
     if (voice != null) body['voice'] = voice;

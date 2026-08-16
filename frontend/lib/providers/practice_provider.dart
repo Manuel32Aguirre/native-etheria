@@ -2,12 +2,10 @@ import 'package:flutter/foundation.dart';
 
 import 'dart:async';
 
-import 'package:record/record.dart';
-
 import '../models/sentence.dart';
 import 'app_settings_provider.dart';
 import '../services/audio_player_service.dart';
-import '../services/audio_recorder_service.dart';
+import '../services/live_transcription_service.dart';
 import '../services/practice_service.dart';
 import '../services/sentence_service.dart';
 import '../services/notification_service.dart';
@@ -22,10 +20,10 @@ enum PracticePhase { loading, speaking, listening, validating }
 class PracticeProvider extends ChangeNotifier {
   final PracticeService practiceService;
   final SentenceService sentenceService;
-  final AudioRecorderService recorderService;
   final AudioPlayerService playerService;
   final AppSettingsProvider settingsProvider;
   final NotificationService notificationService;
+  final LiveTranscriptionService liveTranscriptionService;
 
   List<Sentence> _block = [];
   int _sentenceIndex = 0;
@@ -39,20 +37,17 @@ class PracticeProvider extends ChangeNotifier {
   String? _errorMessage;
   bool _sessionComplete = false;
   PracticePhase _phase = PracticePhase.loading;
-  StreamSubscription<Amplitude>? _amplitudeSubscription;
-  Timer? _silenceTimer;
-  bool _voiceDetected = false;
-  double _amplitude = -60;
   int _sessionVersion = 0;
   bool _isDisposed = false;
+  String _liveCaption = '';
 
   PracticeProvider({
     required this.practiceService,
     required this.sentenceService,
-    required this.recorderService,
     required this.playerService,
     required this.settingsProvider,
     required this.notificationService,
+    required this.liveTranscriptionService,
   });
 
   Sentence? get currentSentence =>
@@ -69,7 +64,9 @@ class PracticeProvider extends ChangeNotifier {
   PracticePhase get phase => _phase;
   bool get isAnswerVisible => _phase == PracticePhase.speaking;
   int get requiredRepetitions => settingsProvider.requiredRepetitions;
-  double get amplitude => _amplitude;
+
+  /// On-device live caption shown while recording (never sent to OpenAI).
+  String get liveCaption => _liveCaption;
 
   Future<void> stopRecordingManually() => stopRecordingAndValidate();
 
@@ -142,7 +139,7 @@ class PracticeProvider extends ChangeNotifier {
           currentSentence == null) {
         return;
       }
-      await startRecording(sessionVersion);
+      await startListening(sessionVersion);
     } catch (e) {
       if (_isCurrentSession(sessionVersion)) {
         _phase = PracticePhase.loading;
@@ -152,24 +149,26 @@ class PracticeProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> startRecording([int? requestedSessionVersion]) async {
+  Future<void> startListening([int? requestedSessionVersion]) async {
     final sessionVersion = requestedSessionVersion ?? _sessionVersion;
     if (!_isCurrentSession(sessionVersion)) return;
     _feedback = FeedbackState.none;
     _errorMessage = null;
     try {
-      await recorderService.start();
-      if (!_isCurrentSession(sessionVersion)) {
-        await recorderService.cancel();
-        return;
-      }
       _isRecording = true;
       _phase = PracticePhase.listening;
-      _voiceDetected = false;
-      _silenceTimer?.cancel();
-      await _amplitudeSubscription?.cancel();
-      _amplitudeSubscription = recorderService.amplitudeStream().listen(
-        (sample) => _onAmplitude(sample, sessionVersion),
+      _liveCaption = '';
+      await liveTranscriptionService.start(
+        onResult: (text) {
+          if (!_isCurrentSession(sessionVersion) || !_isRecording) return;
+          _liveCaption = text;
+          notifyListeners();
+        },
+        onFinalResult: (text) {
+          if (!_isCurrentSession(sessionVersion) || !_isRecording) return;
+          _liveCaption = text;
+          unawaited(stopRecordingAndValidate(sessionVersion));
+        },
       );
       notifyListeners();
     } catch (e) {
@@ -180,47 +179,25 @@ class PracticeProvider extends ChangeNotifier {
     }
   }
 
-  void _onAmplitude(Amplitude sample, int sessionVersion) {
-    if (!_isCurrentSession(sessionVersion)) return;
-    _amplitude = sample.current;
-    final speaking = sample.current > -42;
-    if (speaking) {
-      _voiceDetected = true;
-      _silenceTimer?.cancel();
-      _silenceTimer = null;
-    } else if (_voiceDetected && _silenceTimer == null) {
-      _silenceTimer = Timer(const Duration(milliseconds: 900), () {
-        _silenceTimer = null;
-        if (_isRecording) stopRecordingAndValidate(sessionVersion);
-      });
-    }
-    notifyListeners();
-  }
-
   Future<void> stopRecordingAndValidate([int? requestedSessionVersion]) async {
     final sessionVersion = requestedSessionVersion ?? _sessionVersion;
     if (!_isCurrentSession(sessionVersion) || !_isRecording) return;
     _isRecording = false;
-    await _amplitudeSubscription?.cancel();
-    _amplitudeSubscription = null;
-    _silenceTimer?.cancel();
-    _silenceTimer = null;
+    await liveTranscriptionService.stop();
+    final transcript = _liveCaption.trim();
     _phase = PracticePhase.validating;
     _isLoading = true;
     notifyListeners();
 
     try {
-      final bytes = await recorderService.stop();
-      if (!_isCurrentSession(sessionVersion)) return;
-      if (bytes == null) {
-        _errorMessage = 'No audio was recorded';
+      if (transcript.isEmpty) {
+        _errorMessage = 'No speech was recognized';
         return;
       }
 
-      final result = await practiceService.validateAudio(
+      final result = await practiceService.validateTranscript(
         currentSentence!.id,
-        bytes,
-        'answer.m4a',
+        transcript,
       );
       if (!_isCurrentSession(sessionVersion)) return;
       _lastTranscript = result.transcript;
@@ -272,11 +249,11 @@ class PracticeProvider extends ChangeNotifier {
     _sessionVersion++;
     _isRecording = false;
     _isLoading = false;
-    _silenceTimer?.cancel();
-    _silenceTimer = null;
-    await _amplitudeSubscription?.cancel();
-    _amplitudeSubscription = null;
-    await Future.wait([playerService.stop(), recorderService.cancel()]);
+    _liveCaption = '';
+    await Future.wait([
+      playerService.stop(),
+      liveTranscriptionService.cancel(),
+    ]);
     if (!_isDisposed) notifyListeners();
   }
 
@@ -284,10 +261,8 @@ class PracticeProvider extends ChangeNotifier {
   void dispose() {
     _isDisposed = true;
     _sessionVersion++;
-    _amplitudeSubscription?.cancel();
-    _silenceTimer?.cancel();
     playerService.stop();
-    recorderService.cancel();
+    liveTranscriptionService.dispose();
     super.dispose();
   }
 }

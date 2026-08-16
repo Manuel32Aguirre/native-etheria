@@ -43,6 +43,15 @@ public class PracticeController {
         }
     }
 
+    @PostMapping("/{sentenceId}/validate-text")
+    public ResponseEntity<AudioValidationResponse> validateText(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long sentenceId,
+            @RequestBody TextValidationRequest request) {
+        return ResponseEntity.ok(practiceService.validateTranscript(
+                principal.getId(), sentenceId, request.transcript()));
+    }
+
     @PostMapping(value = "/tts", produces = "audio/mpeg")
     public ResponseEntity<byte[]> textToSpeech(@RequestBody TtsRequest request) {
         byte[] audio = practiceService.textToSpeech(request.text(), request.voice());
@@ -52,5 +61,8 @@ public class PracticeController {
     }
 
     public record TtsRequest(String text, String voice) {
+    }
+
+    public record TextValidationRequest(String transcript) {
     }
 }

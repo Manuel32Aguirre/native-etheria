@@ -11,6 +11,9 @@ public interface PracticeService {
     /** Transcribes the audio via Whisper and requires a 100% exact match against the sentence text. */
     AudioValidationResponse validateAudio(Long userId, Long sentenceId, byte[] audioBytes, String filename);
 
+    /** Validates the final transcript produced by the device speech recognizer. */
+    AudioValidationResponse validateTranscript(Long userId, Long sentenceId, String transcript);
+
     /** Generates spoken audio (mp3) for the given text via the OpenAI TTS API. */
     byte[] textToSpeech(String text, String voice);
 }
