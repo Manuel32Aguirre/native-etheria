@@ -1436,54 +1436,556 @@ _**Agent (default)**_
 <think><details><summary>Thought Process</summary>
 Crearé el servicio STT con FastAPI y faster-whisper.
 
-La clave de OpenAI será opcional para STT local. Implementaré LocalSttClient y conectaré PracticeServiceImpl. Actualizaré docker-compose y .env.example. El modelo será tiny o base con int8 para evitar desbordamiento de memoria
+La clave de OpenAI será opcional para STT local. Implementaré LocalSttClient y conectaré PracticeServiceImpl. Actualizaré docker-compose y .env.example. El modelo será tiny o base con int8 para evitar desbordamiento de memoria en Lightsail.
+
+OpenAI seguirá siendo requerida para visión y TTS. En Spring, agregaré SttProperties con el proveedor local u OpenAI. La interfaz SttClient permitirá cambiar de proveedor sin modificar el código de PracticeServiceImpl.
+
+El endpoint local será http://stt:9000. PracticeServiceImpl usará un cliente REST sin autenticación para el servicio STT local. En Lightsail con 1 GB de RAM, asignaré al contenedor de STT unos 300-400 MB. El modelo por defecto será tiny int8 para seguridad, pero se puede actualizar a base si hay margen.
+
+El modelo por defecto será base con int8. Agregaré la variable WHISPER_MODEL=tiny como respaldo para evitar desbordamiento de memoria. ffmpeg será necesario para procesar archivos m4a. El archivo .env se buscará desde el directorio de trabajo del backend. Ahora crearé los archivos del servicio STT.
 </details></think>
 
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
-<summary>Tool use: **read_file_v2** • Read file: </summary>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\README.md</summary>
 
 </details></tool-use>
 
 _**Agent (default)**_
 
 <tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
-<summary>Tool use: **read_file_v2** • Read file: </summary>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\PracticeServiceImpl.java</summary>
 
 </details></tool-use>
 
 _**Agent (default)**_
 
 <tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
-<summary>Tool use: **glob_file_search** • Searched codebase "" • **0** results in **0** directories</summary>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **1** result in **1** directory</summary>
 
-No results found
+Directory: **``** (1 file)
+
+| File |
+|------|
+| `backend/Dockerfile` |
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Crearé el microservicio STT y lo conectaré con Spring.
+
+La arquitectura será simple: una carpeta `stt-service/` en la raíz del repositorio. Para la instancia Lightsail de $7 con 512 MB o 1 GB de RAM, usaré la configuración `tiny` por seguridad. Documentaré cómo escalar a `base` si hay más recursos. La clave de OpenAI seguirá siendo obligatoria para vision y TTS.
+
+El servicio STT será un microservicio Python con FastAPI. Se implementará un cliente Java `LocalSttClient` que subirá archivos al endpoint `/transcribe` mediante multipart. Se actualizarán los beans de Spring, la configuración y el Docker Compose para integrarlo con el backend principal.
+
+El modelo se cargará una sola vez al iniciar el servicio Python. Se añadirá un endpoint de salud. En Spring se creará un bean `localSttRestClient` exclusivo para el STT local. El `PracticeServiceImpl` elegirá entre `LocalSttClient` y `OpenAiClient` según la propiedad `provider`.
+
+En el docker-compose se añadirá el servicio STT con dependencias desde native. Se configurará `STT_PROVIDER=local` y `STT_LOCAL_URL=http://stt:9000`. El contenedor tendrá límite de memoria de 400 MB. El modelo tiny ocupará unos 300-400 MB. Con Java y Postgres ya consumiendo 512 MB, este espacio es suficiente para el microservicio.
+</details></think>
+
+_**Agent (default)**_
+
+Creo el microservicio liviano pensado para Lightsail ($7) y lo conecto al backend, con modelo `tiny` por defecto para no quedarse sin RAM.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\stt-service\requirements.txt</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\stt-service\app\main.py</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\stt-service\Dockerfile</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\stt-service\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Necesito agregar un archivo __init__.py vacío al paquete app para que uvicorn lo reconozca como módulo.
+
+`main:app` funcionará con app como directorio. La función `on_event` de FastAPI está obsoleta pero sigue operativa; se conserva por simplicidad. Ahora se preparan los archivos del lado de Spring.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\config\SttProperties.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\client\LocalSttClient.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\NativeApplication.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\config\AppConfig.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\PracticeServiceImpl.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\PracticeServiceImpl.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Actualizo NativeApplication y application.yml.
+
+Preparo env.example, docker-compose, README y __init__.py vacío. Corrijo el javadoc de PracticeService.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\NativeApplication.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\NativeApplication.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\resources\application.yml</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\.env.example</summary>
+
 </details></tool-use>
 
 _**Agent (default)**_
 
 <tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
 <summary>Tool use: **edit_file_v2**</summary>
-Status: **loading**
+Incorrect tool arguments
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\stt-service\app\__init__.py</summary>
 
 </details></tool-use>
 
 _**Agent (default)**_
 
 <tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
-<summary>Tool use: **edit_file_v2**</summary>
-Status: **loading**
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\PracticeService.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Escribiré el docker-compose con la herramienta Write, ya que StrReplace falló por tener un old_string vacío.
+
+También actualizaré el README y corregiré NativeApplication si es necesario.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\docker-compose.yml</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\NativeApplication.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\PracticeServiceImpl.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Actualizo brevemente la sección de estructura del README.
+
+Reviso la configuración de los beans RestClient. Hay dos implementaciones posibles: openAiRestClient y localSttRestClient. OpenAiClient inyecta por tipo, lo que podría ser ambiguo. También preparo un .dockerignore para el servicio STT.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\client\OpenAiClient.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria\\backend\\src\\main\\java",
+  "pattern": "RestClient"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria\\backend\\src\\main\\java",
+  "pattern": "RestClient",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\config\\AppConfig.java"
+    },
+    {
+      "matchCount": 4,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\client\\LocalSttClient.java"
+    },
+    {
+      "matchCount": 4,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\client\\OpenAiClient.java"
+    }
+  ],
+  "totalFiles": 3,
+  "totalMatches": 14
+}
+```
+Status: **completed**
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+El parámetro `openAiRestClient` del cliente OpenAI debe coincidir con el nombre del bean en Spring.
+
+Agregaré `@Qualifier("openAiRestClient")` también a `OpenAiClient`. Es más seguro que depender solo del descubrimiento por nombre de parámetro.
+</details></think>
+
+_**Agent (default)**_
+
+Hay dos beans `RestClient`; voy a cualificar el de OpenAI para evitar ambigüedad al arrancar.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\client\OpenAiClient.java</summary>
 
 </details></tool-use>
 
 _**Agent (default)**_
 
 <tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
-<summary>Tool use: **edit_file_v2**</summary>
-Status: **loading**
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\README.md</summary>
 
 </details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Incluiré las variables de STT en la sección de ejemplo de variables de entorno del README.
+
+También actualizaré la línea sobre Whisper en la sección "Qué hace".
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\README.md</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\stt-service\.dockerignore</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2** • Run command: .\mvnw.cmd -q -DskipTests compile</summary>
+```bash
+.\mvnw.cmd -q -DskipTests compile
+```
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="todo_write"><details>
+<summary>Tool use: **todo_write**</summary>
+
+Parameters:
+
+```json
+{
+  "merge": true
+}
+```
+Result:
+
+```json
+{
+  "finalTodos": [
+    {
+      "content": "Crear microservicio Python STT (faster-whisper + FastAPI)",
+      "id": "1",
+      "status": "completed"
+    },
+    {
+      "content": "Conectar Spring para usar STT local en vez de OpenAI Whisper",
+      "id": "2",
+      "status": "completed"
+    },
+    {
+      "content": "Config/env + README de despliegue en Lightsail",
+      "id": "3",
+      "status": "completed"
+    }
+  ],
+  "initialTodos": [
+    {
+      "content": "Crear microservicio Python STT (faster-whisper + FastAPI)",
+      "id": "1",
+      "status": "in_progress"
+    },
+    {
+      "content": "Conectar Spring para usar STT local en vez de OpenAI Whisper",
+      "id": "2",
+      "status": "pending"
+    },
+    {
+      "content": "Config/env + README de despliegue en Lightsail",
+      "id": "3",
+      "status": "pending"
+    }
+  ],
+  "success": true,
+  "wasMerge": true
+}
+```
+Status: **completed**
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+El backend se compiló correctamente. Prepararé un resumen claro del trabajo realizado y las instrucciones para desplegarlo en la instancia Lightsail.
+
+Además, advertiré sobre la limitación de RAM del plan de 7 USD.
+</details></think>
+
+_**Agent (default)**_
+
+Listo. Quedó un microservicio simple, no una arquitectura pesada.
+
+## Qué se creó
+
+```text
+Flutter → Spring (:8080) → stt-service (:9000) → Whisper local
+                ↘ Vision / preguntas / TTS siguen en OpenAI
+```
+
+Carpeta nueva: `stt-service/`  
+Spring ahora usa `STT_PROVIDER=local` por defecto y manda el audio a ese servicio. Los reintentos de práctica ya no llaman a OpenAI Whisper.
+
+## En Lightsail ($7)
+
+1. En `backend/.env` agrega (o copia desde `.env.example`):
+
+```dotenv
+STT_PROVIDER=local
+STT_LOCAL_URL=http://stt:9000
+WHISPER_MODEL=tiny
+```
+
+2. Redesplegar:
+
+```bash
+cd backend
+docker compose up -d --build
+```
+
+3. Verificar:
+
+```bash
+curl http://127.0.0.1:9000/health
+```
+
+## Importante para tu plan
+
+- Modelo por defecto: **`tiny`** (cabe mejor con Java + Postgres).
+- Si tienes RAM libre y quieres más precisión: `WHISPER_MODEL=base`.
+- Si el contenedor se mata por memoria, baja `mem_limit` de algo más o quédate en `tiny`.
+- Para volver a OpenAI Whisper: `STT_PROVIDER=openai`.
+
+Guía corta: `stt-service/README.md`.
+
+Cuando lo despliegues, si falla por RAM o tarda mucho, lo afinamos (modelo / límites).
+
+---
+
+_**User**_
+
+quise ver mi docker compose logs -f y ve
+@.env (1-26) 
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+El usuario tiene problemas con los logs de Docker Compose.
+
+Detecté que compartió secretos sensibles en el archivo .env. Debo advertirle sobre la exposición y sugerir rotar esas credenciales. Revisaré el estado y los logs de Docker Compose para diagnosticar el problema.
+</details></think>
+
+_**Agent (default)**_
+
+Voy a revisar los logs de Docker Compose. Ojo: pegaste secretos reales en el chat (API key, correo y JWT); conviene rotarlos después.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+Cancelled
+</details></tool-use>
+
+---
+
+_**User**_
+
+quise ver mi docker compose logs -f y ve
+ttp://us-east-2.ec2.archive.ubuntu.com/ubuntu noble-updates/main amd64 bzip2 amd64 1.0.8-5.1build0.1 [34.5 kB]
+Get:44 http://us-east-2.ec2.archive.ubuntu.com/ubuntu noble/main amd64 lto-disabled-list all 47 [12.4 kB]
+Get:45 http://us-east-2.ec2.archive.ubuntu.com/ubuntu noble-updates/main amd64 dpkg-dev all 1.22.6ubuntu6.6 [1074 kB]
+Get:46 http://us-east-2.ec2.archive.ubuntu.com/ubuntu noble/main amd64 build-essential amd64 12.10ubuntu1 [4928 B]
+Get:47 http://us-east-2.ec2.archive.ubuntu.com/ubuntu noble/main amd64 libfakeroot amd64 1.33-1 [32.4 kB]
+Get:48 http://us-east-2.ec2.archive.ubuntu.com/ubuntu noble/main amd64 fakeroot amd64 1.33-1 [67.2 kB]
+Get:49 http://us-east-2.ec2.archive.ubuntu.com/ubuntu noble/main amd64 fonts-dejavu-mono all 2.37-8 [502 kB]
+Get:50 http://us-east-2.ec2.archive.ubuntu.com/ubuntu noble/main amd64 fonts-dejavu-core all 2.37-8 [835 kB]
+Get:51 http://us-east-2.ec2.archive.ubuntu.com/ubuntu noble/main amd64 fontconfig-config amd64 2.15.0-1.1ubuntu2 [37.3 kB]
+Get:52 http://us-east-2.ec2.archive.ubuntu.com/ubuntu noble/main amd64 javascript-common all 11+nmu1 [5936 B]
+Get:53 http://us-east-2.ec2.archive.ubuntu.com/ubuntu noble/main amd64 libalgorithm-diff-perl all 1.201-1 [41.8 kB]
+Get:54 http://us-east-2.ec2.archive.ubuntu.com/ubuntu noble/main amd64 libalgorithm-diff-xs-perl amd64 0.04-8build3 [11.2 kB]
+native_stt       |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+native_stt       |   File "uvloop/loop.pyx", line 1518, in uvloop.loop.Loop.run_until_complete
+native_stt       |   File "/usr/local/lib/python3.12/site-packages/uvicorn/server.py", line 70, in serve
+native_stt       |     await self._serve(sockets)
+native_stt       |   File "/usr/local/lib/python3.12/site-packages/uvicorn/server.py", line 77, in _serve
+native_stt       |     config.load()
+native_stt       |   File "/usr/local/lib/python3.12/site-packages/uvicorn/config.py", line 435, in load
+native_stt       |     self.loaded_app = import_from_string(self.app)
+native_stt       |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+native_stt       |   File "/usr/local/lib/python3.12/site-packages/uvicorn/importer.py", line 22, in import_from_string
+native_stt       |     raise exc from None
+native_stt       |   File "/usr/local/lib/python3.12/site-packages/uvicorn/importer.py", line 19, in import_from_string
+native_stt       |     module = importlib.import_module(module_str)
+native_stt       |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+native_stt       |   File "/usr/local/lib/python3.12/importlib/__init__.py", line 90, in import_module
+native_stt       |     return _bootstrap._gcd_import(name[level:], package, level)
+native_stt       |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+native_stt       |   File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+native_stt       |   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+native_stt       |   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+native_stt       |   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+native_stt       |   File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+native_stt       |   File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+native_stt       |   File "/app/app/main.py", line 16, in <module>
+native_stt       |     from faster_whisper import WhisperModel
+native_stt       |   File "/usr/local/lib/python3.12/site-packages/faster_whisper/__init__.py", line 2, in <module>
+native_stt       |     from faster_whisper.transcribe import BatchedInferencePipeline, WhisperModel
+native_stt       |   File "/usr/local/lib/python3.12/site-packages/faster_whisper/transcribe.py", line 22, in <module>
+native_stt       |     from faster_whisper.utils import download_model, format_timestamp, get_end, get_logger
+native_stt       |   File "/usr/local/lib/python3.12/site-packages/faster_whisper/utils.py", line 8, in <module>
+native_stt       |     import requests
+native_stt       | ModuleNotFoundError: No module named 'requests'
+native_stt exited with code 1 (restarting)
+^C
+ubuntu@ip-172-26-7-164:~/native-etheria/backend$ 
+
+---
 
 _**Agent (default)**_
 
