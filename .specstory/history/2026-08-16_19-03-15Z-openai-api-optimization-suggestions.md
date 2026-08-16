@@ -2396,5 +2396,223 @@ _**Agent (default)**_
 <think><details><summary>Thought Process</summary>
 The 422 error is coming from the STT service's FastAPI validation—it's rejecting the request because the `file` field isn't being properly included when Spring forwards the multipart request. The second error, connection reset by peer, suggests the STT container crashed or ran out of memory partway through processing.
 
-Looking at the LocalSttClient, the ByteArrayResource approach should work fine, and Spring's RestClient multipart handling with the form map should correctly name the part "file". But FastAPI is saying the field is missing entirely—either the multipart boundary or content-type headers aren't being set correctly by Spring, or the resource isn't being serialized as expected. The python-multipart dependency is installed, so that's not the blocker. The real issue might be how Spring is encoding the multipart body or whether it's accidentally sending the file with the wrong content-type.
+Looking at the LocalSttClient, the ByteArrayResource approach should work fine, and Spring's RestClient multipart handling with the form map should correctly name the part "file". But FastAPI is saying the field is missing entirely—either the multipart boundary or content-type headers aren't being set correctly by Spring, or the resource isn't being serialized as expected. The python-multipart dependency is installed, so that's not the blocker. The real issue might be how Spring is encoding the multipart body or whether it's accidentally sending the file with the wrong content-type. I could make the STT endpoint more flexible by accepting the file field with different names or even parsing the raw request body directly. The real issue might be Spring's ResourceHttpMessageConverter sending the multipart data in a way that FastAPI's python-multipart library doesn't handle — possibly a filename encoding mismatch or version incompatibility with python-multipart 0.0.20. The "Connection reset by peer" error in the second screenshot suggests the backend might be running out of memory on the Lightsail instance when processing the request. I'm wondering if FastAPI's handling of multipart fields without filenames could be the culprit — if Spring sends the resource part without a filename, FastAPI might interpret it as a string form field rather than a file, which would cause a type mismatch. But "Field required" suggests the `file` part isn't being sent at all, which points to Spring using a different part name or serializing the resource differently than expected. Rather than continue speculating, the practical approach is to add logging to the STT service to see exactly what's arriving in the request.
+
+I should harden both sides: on the Spring end, I'll explicitly construct the multipart request with proper HttpEntity and ContentDisposition headers to guarantee the part name and filename are set correctly. On the FastAPI side, I'll make it more flexible by accepting the file under multiple possible names and falling back to reading the raw request body if needed. I should also add some guidance about memory usage.
+
+Building the Spring multipart request properly... I'm thinking through whether Spring automatically adds the boundary to multipart requests when contentType is set without it. Then I'm considering if there's a proxy involved in the deployment, since they're calling the service directly at that IP address. For the audio processing, I'm noting that faster-whisper uses PyAV for decoding rather than the ffmpeg CLI, and the model downloads at startup require internet connectivity. The second error is likely an out-of-memory issue, which might explain why the 422 error appeared in an earlier deployment.
+
+Now I'm reconsidering the timeline — the 422 came first at 2:12, then the connection reset at 2:13 — so they're separate issues. Rather than asking for more details, I should provide a robust fix with diagnostic commands. My approach is to add explicit multipart headers and timeouts in Spring, make FastAPI more flexible with accepting the file under multiple field names while logging what's received, and address memory constraints by either reducing the Java heap or suggesting they add swap space on Lightsail. I'm also reconsidering the RestClient implementation more carefully — when passing a MultiValueMap with Resource values, the map key becomes the part name, which should work correctly. But there's a subtle gotcha with anonymous subclasses that I need to think through.
+
+Actually, the real issue might be the Spring version itself — this is Spring Boot 4.1 according to the README, and I should verify how FormHttpMessageConverter behaves there. Rather than continuing to guess, I'll add server-side logging so the next attempt shows exactly what data arrives, combined with more tolerant parsing that should handle the mismatch. Let me write the code now, starting with a FastAPI endpoint that uses the Request object to parse the form manually for maximum flexibility.
+
+Writing FastAPI endpoint... Extracting the upload file and reading its data, then falling back to raw request body if needed. I should also add logging when no upload is found, implement a health check endpoint, and for the Spring service increase read timeouts since transcription can take a while on limited resources, plus consider memory constraints on the small instance.
+
+The $7 Lightsail plan has 1GB RAM total, so with Java heap at 256MB, Postgres at 256MB, and the speech-to-text model taking 200-400MB peak, I'm tight on memory—adding 2GB swap is the practical solution. I'll also modernize the FastAPI startup to use lifespan instead of the deprecated on_event decorator, then write out the updated main.py.
+
+For the Whisper CPU threads, I need to balance speed against memory constraints on a 2 vCPU instance. I'll make it configurable via environment variable with a default of 2 threads to take advantage of the available cores while keeping memory usage reasonable.
+
+Now I'm shifting focus to the Spring changes in LocalSttClient — I need to add explicit HttpEntity handling and configure timeouts through AppConfig using a custom ClientHttpRequestFactory.
 </details></think>
+
+_**Agent (default)**_
+
+Los dos errores dicen cosas distintas. Voy a revisar el envío multipart de Spring y endurecer el servicio STT.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\client\LocalSttClient.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\stt-service\app\main.py</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to fix the FastAPI implementation to be more tolerant of form data and add logging for part names, while also updating Spring to send explicit part headers and handle memory concerns. I'm rewriting the main.py file to use manual form parsing with a lifespan context manager.
+</details></think>
+
+_**Agent (default)**_
+
+Voy a hacer el envío multipart explícito en Spring y que el servicio STT acepte el archivo de forma tolerante, con logs para diagnosticar.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\stt-service\app\main.py</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to update the LocalSttClient to send multipart form data with explicit headers and filenames using HttpEntity, set timeouts to prevent hanging, and improve error handling for 4xx/5xx responses from the speech-to-text service.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\client\LocalSttClient.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+I need to add a read timeout to the STT RestClient to prevent it from hanging indefinitely and to make errors more transparent. For Spring Boot 3.4+ or 4, I'll use `SimpleClientHttpRequestFactory` with both connect and read timeouts configured, which is simpler and more version-safe than other approaches. Now I'm updating the AppConfig to implement this.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\config\AppConfig.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\config\AppConfig.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\config\AppConfig.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2** • Run command: .\mvnw.cmd -q -DskipTests compile</summary>
+```bash
+.\mvnw.cmd -q -DskipTests compile
+```
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+The connection reset error is likely an out-of-memory issue, so I'll add swap recommendations and memory reduction strategies. I'm updating the docker-compose configuration to pass the WHISPER_CPU_THREADS environment variable and include a healthcheck for the speech-to-text service, plus setting a default value in the Dockerfile. The model download on first startup needs internet and disk space, which is expected.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\docker-compose.yml</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\docker-compose.yml</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+Corregí las dos causas. Son errores distintos:
+
+**1. Error 422 (`Field required: file`)**
+
+El servicio Python no encontraba la parte `file` del multipart que enviaba Spring.
+
+- Spring ahora construye el multipart explícitamente con `MultipartBodyBuilder`, fijando nombre de parte, `filename` y `Content-Type`.
+- El servicio STT ahora acepta el audio bajo cualquier nombre de campo, o incluso como cuerpo crudo, y si no lo encuentra registra en logs qué campos llegaron.
+
+**2. `Connection reset by peer`**
+
+Esa conexión se cortó en el servidor: casi seguro el contenedor STT murió por falta de memoria en el Lightsail de $7 (Java + Postgres + Whisper).
+
+Mitigaciones aplicadas:
+
+- `WHISPER_CPU_THREADS=1` y `OMP_NUM_THREADS=1` (menos RAM/CPU).
+- Volumen para cachear el modelo y no re-descargarlo en cada arranque.
+- Timeouts explícitos en Spring (5 s conexión, 120 s lectura) para errores claros en vez de cuelgues.
+
+## Desplegar
+
+```bash
+cd ~/native-etheria/backend
+git pull
+docker compose up -d --build stt native
+docker compose logs -f stt
+```
+
+Espera a ver `Whisper model ready`.
+
+## Muy recomendable: agregar swap
+
+Con 1 GB de RAM esto evita que el kernel mate contenedores:
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+## Verificar
+
+```bash
+curl http://127.0.0.1:9000/health
+docker stats --no-stream
+dmesg | grep -i "killed process"
+```
+
+Si `dmesg` muestra procesos killeados, era memoria. Si tras esto vuelve a fallar, mándame `docker compose logs --tail=50 stt` y lo ajustamos.
+
+---
+
+_**User**_
+
+segun yo ya tenia swap, a ver dame un comandito para ver que tenia de swap y lo meto copio y pego lo que me salga en la instancia lightsail
+mientras, voy pusheando y pulleando
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+El usuario busca un comando para verificar si ya tiene swap configurado en su instancia Lightsail.
+</details></think>
+
+_**Agent (default)**_
+
+Copia y pega esto en Lightsail:
+
+```bash
+free -h; echo '---'; swapon --show; echo '---'; cat /proc/swaps; echo '---'; grep -E 'swap|Swap' /etc/fstab || echo 'sin swap en fstab'
+```
+
+Me pegas la salida completa.
+
+---
+
+_**User**_
+
+$ free -h; echo '---'; swapon --show; echo '---'; cat /proc/swaps; echo '---'; grep -E 'swap|Swap' /etc/fstab || echo 'sin swap en fstab'
+
+               total        used        free      shared  buff/cache   available
+Mem:           911Mi       757Mi        68Mi       7.4Mi       260Mi       153Mi
+Swap:          2.0Gi       897Mi       1.1Gi
+---
+NAME      TYPE SIZE   USED PRIO
+/swapfile file   2G 897.2M   -2
+---
+Filename                                Type            Size            Used            Priority
+/swapfile                               file            2097148         918704          -2
+---
+/swapfile none swap sw 0 0
+ubuntu@ip-172-26-7-164:~/native-etheria/backend$ 
