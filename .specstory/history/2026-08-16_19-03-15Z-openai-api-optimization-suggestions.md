@@ -2616,3 +2616,78 @@ Filename                                Type            Size            Used    
 ---
 /swapfile none swap sw 0 0
 ubuntu@ip-172-26-7-164:~/native-etheria/backend$ 
+
+
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Swap is already configured.
+
+Only 68Mi of RAM remain free. The 2GB swap is already nearly full at ~900MB. Memory pressure is causing the OOM kills. The swap is not the problem. The real bottleneck is RAM.
+</details></think>
+
+_**Agent (default)**_
+
+Sí, ya tienes swap: **2 GB** en `/swapfile` y está activo en `fstab`.
+
+El problema es otro:
+
+| | Total | Usado | Libre |
+|--|------:|------:|------:|
+| RAM | 911 Mi | 757 Mi | ~68–153 Mi |
+| Swap | 2.0 Gi | **897 Mi** | 1.1 Gi |
+
+La instancia ya va muy justa: casi toda la RAM ocupada y casi **1 GB de swap en uso**. Cuando Whisper intenta transcribir, puede seguir matando el contenedor o cortar la conexión.
+
+No hace falta crear más swap ahora. Cuando termines el `pull` + rebuild:
+
+```bash
+docker compose up -d --build stt native
+docker stats --no-stream
+docker compose logs --tail=40 stt
+```
+
+Si STT se cae otra vez, mándame esa salida. Las opciones reales serían: bajar memoria de Java/Postgres un poco más, o subir el plan de Lightsail.
+
+---
+
+_**User**_
+
+ahora salio esto
+
+---
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: </summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+Status: **loading**
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+Status: **loading**
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2** • Run command: .\mvnw.cmd -q -DskipTests compile</summary>
+```bash
+.\mvnw.cmd -q -DskipTests compile
+```
+</details></tool-use>

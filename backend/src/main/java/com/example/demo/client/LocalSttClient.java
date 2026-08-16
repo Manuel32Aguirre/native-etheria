@@ -7,8 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -31,23 +32,25 @@ public class LocalSttClient {
     public String transcribeAudio(byte[] audioBytes, String filename) {
         String safeName = filename == null || filename.isBlank() ? "audio.m4a" : filename;
 
-        MultipartBodyBuilder builder = new MultipartBodyBuilder();
-        builder.part("file", new ByteArrayResource(audioBytes) {
-                    @Override
-                    public String getFilename() {
-                        return safeName;
-                    }
-                })
-                .filename(safeName)
-                .contentType(MediaType.APPLICATION_OCTET_STREAM);
-        builder.part("language", properties.getLanguage());
+        ByteArrayResource resource = new ByteArrayResource(audioBytes) {
+            @Override
+            public String getFilename() {
+                return safeName;
+            }
+        };
+
+        // Same multipart style as OpenAiClient.transcribeAudio — no MultipartBodyBuilder
+        // (that needs reactive-streams / WebFlux, which this app does not use).
+        MultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+        form.add("file", resource);
+        form.add("language", properties.getLanguage());
 
         String responseBody;
         try {
             responseBody = restClient.post()
                     .uri("/transcribe")
                     .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(builder.build())
+                    .body(form)
                     .retrieve()
                     .body(String.class);
         } catch (RestClientResponseException ex) {
