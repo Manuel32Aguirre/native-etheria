@@ -1,6 +1,8 @@
 package com.example.demo.services.impl;
 
+import com.example.demo.client.LocalSttClient;
 import com.example.demo.client.OpenAiClient;
+import com.example.demo.config.SttProperties;
 import com.example.demo.domain.Sentence;
 import com.example.demo.dto.AudioValidationResponse;
 import com.example.demo.dto.QuestionResponse;
@@ -20,6 +22,8 @@ public class PracticeServiceImpl implements PracticeService {
 
     private final SentenceRepository sentenceRepository;
     private final OpenAiClient openAiClient;
+    private final LocalSttClient localSttClient;
+    private final SttProperties sttProperties;
 
     @Override
     @Transactional
@@ -40,8 +44,10 @@ public class PracticeServiceImpl implements PracticeService {
             throw new BadRequestException("Audio file is empty");
         }
 
-        Sentence sentence = findOwnedSentence(userId, sentenceId);
-        String transcript = openAiClient.transcribeAudio(audioBytes, filename);
+        findOwnedSentence(userId, sentenceId);
+        String transcript = sttProperties.isLocal()
+                ? localSttClient.transcribeAudio(audioBytes, filename)
+                : openAiClient.transcribeAudio(audioBytes, filename);
 
         return validateTranscript(userId, sentenceId, transcript);
     }

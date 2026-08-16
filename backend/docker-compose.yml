@@ -10,12 +10,34 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
+      STT_PROVIDER: ${STT_PROVIDER:-local}
+      STT_LOCAL_URL: ${STT_LOCAL_URL:-http://stt:9000}
       JAVA_TOOL_OPTIONS: "-Xms64m -Xmx256m"
     ports:
       - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      stt:
+        condition: service_started
+    networks:
+      - native_network
+
+  stt:
+    build:
+      context: ../stt-service
+      dockerfile: Dockerfile
+    container_name: native_stt
+    restart: unless-stopped
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-tiny}
+      WHISPER_COMPUTE_TYPE: int8
+      WHISPER_DEVICE: cpu
+      WHISPER_LANGUAGE: ${STT_LANGUAGE:-en}
+    # Keep this low for Lightsail $7. Raise only if the instance has free RAM.
+    mem_limit: 450m
+    ports:
+      - "127.0.0.1:9000:9000"
     networks:
       - native_network
 

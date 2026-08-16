@@ -67,6 +67,14 @@ openai:
   tts-model: ${OPENAI_TTS_MODEL:tts-1}
   tts-voice: ${OPENAI_TTS_VOICE:alloy}
 
+# Speech-to-text for practice answers.
+# local  = stt-service (faster-whisper on the same Lightsail host) — $0 per attempt
+# openai = OpenAI Whisper — billed per request
+stt:
+  provider: ${STT_PROVIDER:local}
+  local-base-url: ${STT_LOCAL_URL:http://localhost:9000}
+  language: ${STT_LANGUAGE:en}
+
 logging:
   level:
     com.example.demo: INFO

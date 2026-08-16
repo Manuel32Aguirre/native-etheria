@@ -4,6 +4,7 @@ import com.example.demo.config.OpenAiProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -24,7 +25,9 @@ public class OpenAiClient {
     private final OpenAiProperties properties;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public OpenAiClient(RestClient openAiRestClient, OpenAiProperties properties) {
+    public OpenAiClient(
+            @Qualifier("openAiRestClient") RestClient openAiRestClient,
+            OpenAiProperties properties) {
         this.restClient = openAiRestClient;
         this.properties = properties;
     }

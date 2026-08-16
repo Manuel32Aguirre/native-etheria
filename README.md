@@ -9,7 +9,7 @@ El proyecto está compuesto por una app Flutter y una API en Spring Boot. La par
 - Extrae frases en inglés desde fotografías o capturas de pantalla.
 - Agrupa las frases en bloques de hasta cinco elementos para evitar sesiones pesadas.
 - Genera una pregunta de contexto por frase y la lee en voz alta.
-- Permite responder con la voz; Whisper transcribe la respuesta y se compara contra el texto objetivo.
+- Permite responder con la voz; el audio se transcribe con Whisper local (`stt-service`) y se compara contra el texto objetivo.
 - Acepta diferencias normales de mayúsculas, espacios y puntuación, pero mantiene la exigencia sobre las palabras de la frase.
 - Aplica repetición espaciada con intervalos de 3 horas, 12 horas, 1 día, 3 días, 1 semana, 2 semanas y 1 mes.
 - Guarda la voz seleccionada y el número de repeticiones por cuenta.
@@ -26,6 +26,7 @@ native-etheria/
 │   ├── .env.example         # Plantilla de configuración local
 │   ├── mvnw / mvnw.cmd      # Maven Wrapper
 │   └── pom.xml
+├── stt-service/             # Microservicio local audio→texto (faster-whisper)
 └── frontend/                # Aplicación Flutter para Android
     ├── lib/                 # Pantallas, providers, modelos y servicios
     ├── android/
@@ -42,7 +43,7 @@ native-etheria/
 | API | Java 21, Spring Boot 4.1, Spring Security, Spring Data JPA |
 | Persistencia | PostgreSQL, Hibernate |
 | Autenticación | JSON Web Tokens (JWT) |
-| IA | GPT-4o, Whisper y TTS de OpenAI |
+| IA | GPT-4o y TTS de OpenAI; transcripción local con `faster-whisper` (`stt-service`) |
 | Correo | Spring Mail mediante SMTP |
 
 ## Requisitos
@@ -53,7 +54,8 @@ Para ejecutar el proyecto localmente necesitas:
 - Flutter con Dart 3.13 o superior.
 - Android Studio, un emulador Android o un dispositivo físico con depuración USB.
 - PostgreSQL 16 o una instancia compatible.
-- Una clave de OpenAI con acceso a `gpt-4o`, `whisper-1` y `tts-1`.
+- Una clave de OpenAI con acceso a visión/chat y `tts-1` (Whisper cloud es opcional).
+- Python 3.12+ solo si corres `stt-service` fuera de Docker.
 - Una cuenta SMTP si quieres probar la verificación de correo.
 
 Los wrappers incluidos permiten usar Maven sin instalarlo globalmente.
@@ -80,12 +82,18 @@ DB_PASSWORD=tu_password
 JWT_SECRET=un-secreto-largo-y-aleatorio
 JWT_EXPIRATION_MS=86400000
 
-# OpenAI
+# OpenAI (visión, preguntas y TTS; STT cloud solo si STT_PROVIDER=openai)
 OPENAI_API_KEY=sk-...
 OPENAI_VISION_MODEL=gpt-4o
 OPENAI_STT_MODEL=whisper-1
 OPENAI_TTS_MODEL=tts-1
 OPENAI_TTS_VOICE=alloy
+
+# STT local (recomendado en Lightsail)
+STT_PROVIDER=local
+STT_LOCAL_URL=http://stt:9000
+STT_LANGUAGE=en
+WHISPER_MODEL=tiny
 
 # Verificación de correo
 MAIL_HOST=smtp.gmail.com
