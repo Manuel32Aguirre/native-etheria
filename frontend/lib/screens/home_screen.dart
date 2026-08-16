@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../models/sentence.dart';
+import '../providers/app_settings_provider.dart';
 import '../providers/sentence_provider.dart';
 import 'practice_screen.dart';
 import 'schedule_screen.dart';
@@ -28,13 +29,14 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SentenceProvider>().refreshBlock();
       context.read<SentenceProvider>().refreshHistory();
+      context.read<AppSettingsProvider>().loadFromServer();
     });
   }
 
   Future<void> _extractImages(List<XFile> files) async {
     if (files.isEmpty) return;
     final bytes = await Future.wait(
-      files.take(10).map((file) => File(file.path).readAsBytes()),
+      files.take(5).map((file) => File(file.path).readAsBytes()),
     );
     if (!mounted) return;
     final sentenceProvider = context.read<SentenceProvider>();
@@ -65,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _pickImagesFromGallery() async {
-    final picked = await _picker.pickMultiImage(imageQuality: 85, limit: 10);
+    final picked = await _picker.pickMultiImage(imageQuality: 85, limit: 5);
     await _extractImages(picked);
   }
 
@@ -114,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       ListTile(
                         leading: const Icon(Icons.photo_library),
-                        title: const Text('Elegir hasta 10 imágenes'),
+                        title: const Text('Elegir hasta 5 imágenes'),
                         subtitle: const Text(
                           'Puedes seleccionar varias capturas a la vez',
                         ),

@@ -28,6 +28,16 @@ public class PracticeController {
         return ResponseEntity.ok(practiceService.generateQuestion(principal.getId(), sentenceId));
     }
 
+    @PostMapping(value = "/{sentenceId}/question-audio", produces = "audio/mpeg")
+    public ResponseEntity<byte[]> getQuestionAudio(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable Long sentenceId,
+            @RequestParam(required = false) String voice) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.valueOf("audio/mpeg"))
+                .body(practiceService.getQuestionAudio(principal.getId(), sentenceId, voice));
+    }
+
     @PostMapping(value = "/{sentenceId}/validate-audio", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<AudioValidationResponse> validateAudio(
             @AuthenticationPrincipal UserPrincipal principal,

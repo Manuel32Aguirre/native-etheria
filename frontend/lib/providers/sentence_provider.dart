@@ -45,7 +45,7 @@ class SentenceProvider extends ChangeNotifier {
     notifyListeners();
     try {
       var createdCount = 0;
-      for (final bytes in images) {
+      for (final bytes in images.take(5)) {
         createdCount += await sentenceService.extractFromImageBase64(
           base64Encode(bytes),
         );

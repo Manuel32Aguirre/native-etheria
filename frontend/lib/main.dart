@@ -13,6 +13,7 @@ import 'services/audio_recorder_service.dart';
 import 'services/auth_service.dart';
 import 'services/practice_service.dart';
 import 'services/sentence_service.dart';
+import 'services/settings_service.dart';
 import 'services/notification_service.dart';
 
 void main() {
@@ -32,6 +33,7 @@ class NativeApp extends StatelessWidget {
         Provider(create: (_) => apiClient),
         Provider(create: (_) => AuthService(apiClient)),
         Provider(create: (_) => SentenceService(apiClient)),
+        Provider(create: (_) => SettingsService(apiClient)),
         Provider(create: (_) => PracticeService(apiClient)),
         Provider(create: (_) => AudioRecorderService()),
         Provider(create: (_) => AudioPlayerService()),
@@ -39,7 +41,10 @@ class NativeApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (ctx) => AuthProvider(ctx.read<AuthService>()),
         ),
-        ChangeNotifierProvider(create: (_) => AppSettingsProvider()..load()),
+        ChangeNotifierProvider(
+          create: (ctx) =>
+              AppSettingsProvider(ctx.read<SettingsService>())..load(),
+        ),
         ChangeNotifierProvider(
           create: (ctx) => SentenceProvider(ctx.read<SentenceService>()),
         ),

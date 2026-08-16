@@ -60,6 +60,23 @@ public class PracticeServiceImpl implements PracticeService {
     }
 
     @Override
+    @Transactional
+    public byte[] getQuestionAudio(Long userId, Long sentenceId, String voice) {
+        Sentence sentence = findOwnedSentence(userId, sentenceId);
+        String selectedVoice = voice == null || voice.isBlank() ? "alloy" : voice;
+        if (sentence.getPracticeQuestion() == null || sentence.getPracticeQuestion().isBlank()) {
+            sentence.setPracticeQuestion(openAiClient.generateVariableQuestion(sentence.getOriginalText()));
+        }
+
+        if (sentence.getPracticeQuestionAudio() == null
+                || !selectedVoice.equals(sentence.getPracticeQuestionAudioVoice())) {
+            sentence.setPracticeQuestionAudio(openAiClient.textToSpeech(sentence.getPracticeQuestion(), selectedVoice));
+            sentence.setPracticeQuestionAudioVoice(selectedVoice);
+        }
+        return sentence.getPracticeQuestionAudio();
+    }
+
+    @Override
     public byte[] textToSpeech(String text, String voice) {
         if (text == null || text.isBlank()) {
             throw new BadRequestException("Text is required for speech synthesis");

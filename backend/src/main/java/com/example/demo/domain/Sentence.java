@@ -30,6 +30,11 @@ public class Sentence {
     @Lob
     private String practiceQuestion;
 
+    @Column(columnDefinition = "bytea")
+    private byte[] practiceQuestionAudio;
+
+    private String practiceQuestionAudioVoice;
+
     @Builder.Default
     @Column(nullable = false)
     private int intervalIndex = 0;

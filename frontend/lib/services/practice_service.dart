@@ -13,6 +13,13 @@ class PracticeService {
     return result['question'] as String;
   }
 
+  Future<Uint8List> getQuestionAudio(int sentenceId, String voice) async {
+    final bytes = await client.postForBytes(
+      '/practice/$sentenceId/question-audio?voice=${Uri.encodeQueryComponent(voice)}',
+    );
+    return Uint8List.fromList(bytes);
+  }
+
   /// Returns (isExactMatch, transcript).
   Future<AudioValidationResult> validateAudio(
     int sentenceId,

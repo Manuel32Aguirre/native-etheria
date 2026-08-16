@@ -104,9 +104,9 @@ class PracticeProvider extends ChangeNotifier {
     try {
       _question = await practiceService.getQuestion(currentSentence!.id);
       if (!_isCurrentSession(sessionVersion)) return;
-      _questionAudio = await practiceService.textToSpeech(
-        _question,
-        voice: settingsProvider.voice,
+      _questionAudio = await practiceService.getQuestionAudio(
+        currentSentence!.id,
+        settingsProvider.voice,
       );
       if (!_isCurrentSession(sessionVersion)) return;
       await _speakAndStartListening(sessionVersion);

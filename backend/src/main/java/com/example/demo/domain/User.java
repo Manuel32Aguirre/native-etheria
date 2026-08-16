@@ -36,4 +36,12 @@ public class User {
     @Builder.Default
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
+
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "integer default 20")
+    private int requiredRepetitions = 20;
+
+    @Builder.Default
+    @Column(nullable = false, length = 30, columnDefinition = "varchar(30) default 'alloy'")
+    private String ttsVoice = "alloy";
 }
