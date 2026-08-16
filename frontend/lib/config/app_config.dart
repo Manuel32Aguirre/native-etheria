@@ -5,7 +5,7 @@ class AppConfig {
   AppConfig._();
 
   /// Lightsail static IPv4 address for the Native backend.
-  static const String lanHost = '18.191.128.112';
+  static const String lanHost = '3.21.152.118';
 
   /// Port configured in application.yml (server.port).
   static const int port = 8080;
