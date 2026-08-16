@@ -39,4 +39,26 @@ public class AppConfig {
                 .requestFactory(factory)
                 .build();
     }
+
+    @Bean
+    @Qualifier("groqSttRestClient")
+    public RestClient groqSttRestClient(SttProperties sttProperties) {
+        if (sttProperties.isGroq()
+                && (sttProperties.getGroqApiKey() == null
+                || sttProperties.getGroqApiKey().isBlank()
+                || sttProperties.getGroqApiKey().startsWith("gsk_your"))) {
+            throw new IllegalStateException(
+                    "GROQ_API_KEY is missing. Set it in backend/.env when STT_PROVIDER=groq.");
+        }
+
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(10));
+        factory.setReadTimeout(Duration.ofSeconds(60));
+
+        return RestClient.builder()
+                .baseUrl(sttProperties.getGroqBaseUrl())
+                .defaultHeader("Authorization", "Bearer " + sttProperties.getGroqApiKey())
+                .requestFactory(factory)
+                .build();
+    }
 }

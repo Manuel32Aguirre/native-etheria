@@ -19,11 +19,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      stt:
-        condition: service_started
     networks:
       - native_network
 
+  # Optional: only needed when STT_PROVIDER=local
   stt:
     build:
       context: ../stt-service

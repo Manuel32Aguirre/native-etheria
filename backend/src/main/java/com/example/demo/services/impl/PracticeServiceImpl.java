@@ -1,5 +1,6 @@
 package com.example.demo.services.impl;
 
+import com.example.demo.client.GroqSttClient;
 import com.example.demo.client.LocalSttClient;
 import com.example.demo.client.OpenAiClient;
 import com.example.demo.config.SttProperties;
@@ -25,6 +26,7 @@ public class PracticeServiceImpl implements PracticeService {
     private final SentenceRepository sentenceRepository;
     private final OpenAiClient openAiClient;
     private final LocalSttClient localSttClient;
+    private final GroqSttClient groqSttClient;
     private final SttProperties sttProperties;
 
     @Override
@@ -47,11 +49,19 @@ public class PracticeServiceImpl implements PracticeService {
         }
 
         findOwnedSentence(userId, sentenceId);
-        String transcript = sttProperties.isLocal()
-                ? localSttClient.transcribeAudio(audioBytes, filename)
-                : openAiClient.transcribeAudio(audioBytes, filename);
+        String transcript = transcribe(audioBytes, filename);
 
         return validateTranscript(userId, sentenceId, transcript);
+    }
+
+    private String transcribe(byte[] audioBytes, String filename) {
+        if (sttProperties.isLocal()) {
+            return localSttClient.transcribeAudio(audioBytes, filename);
+        }
+        if (sttProperties.isGroq()) {
+            return groqSttClient.transcribeAudio(audioBytes, filename);
+        }
+        return openAiClient.transcribeAudio(audioBytes, filename);
     }
 
     @Override
