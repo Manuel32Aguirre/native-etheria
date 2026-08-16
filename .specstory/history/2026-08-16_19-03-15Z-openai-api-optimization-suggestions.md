@@ -2662,8 +2662,26 @@ ahora salio esto
 
 _**Agent (default)**_
 
+<think><details><summary>Thought Process</summary>
+El usuario reporta un nuevo error.
+
+El error es `NoClassDefFoundError: org.reactivestreams.Publisher`. Ocurre al usar `MultipartBodyBuilder` con `RestClient`. La solución es agregar la dependencia `reactive-streams` o evitar `MultipartBodyBuilder`.
+
+La causa raíz es que `MultipartBodyBuilder` genera valores `Publisher` de reactive streams. Como alternativa sin webflux, se puede usar `LinkedMultiValueMap` con `ByteArrayResource` y ajustar el `Content-Disposition`.
+
+El código concreto para evitar reactive streams usa `LinkedMultiValueMap` con `ByteArrayResource` y un `getFilename()` override. Esto evita `MultipartBodyBuilder` y su dependencia `Publisher`. El conversor `FormHttpMessageConverter` maneja este formato directamente.
+
+Revertir a `LinkedMultiValueMap` no es viable porque antes generaba un error 422. La mejor solución es agregar la dependencia `reactive-streams` en el `pom.xml`.
+</details></think>
+
+_**Agent (default)**_
+
+Ese error es del backend: falta la clase `Publisher` al armar el multipart. Voy a corregirlo ahora.
+
+_**Agent (default)**_
+
 <tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
-<summary>Tool use: **read_file_v2** • Read file: </summary>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\pom.xml</summary>
 
 </details></tool-use>
 
@@ -2671,15 +2689,68 @@ _**Agent (default)**_
 
 <tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
 <summary>Tool use: **ripgrep_raw_search**</summary>
-Status: **loading**
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria\\backend",
+  "pattern": "MultipartBodyBuilder|LinkedMultiValueMap|LocalSttClient"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria\\backend",
+  "pattern": "MultipartBodyBuilder|LinkedMultiValueMap|LocalSttClient",
+  "topFiles": [
+    {
+      "matchCount": 4,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\client\\LocalSttClient.java"
+    },
+    {
+      "matchCount": 2,
+      "uri": "backend/src/main/java/com/example/demo/client/OpenAiClient.java"
+    },
+    {
+      "matchCount": 2,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\services\\impl\\PracticeServiceImpl.java"
+    },
+    {
+      "matchCount": 2,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\client\\OpenAiClient.java"
+    }
+  ],
+  "totalFiles": 4,
+  "totalMatches": 10
+}
+```
+Status: **completed**
 
 </details></tool-use>
 
 _**Agent (default)**_
 
+<think><details><summary>Thought Process</summary>
+MultipartBodyBuilder requiere reactive-streams.
+
+La solución más limpia es usar LinkedMultiValueMap en lugar de MultipartBodyBuilder. El servicio STT recibía 422 porque faltaba el archivo. OpenAiClient ya lo hace con OpenAI. El problema podría ser que RestClient no configuraba bien el multipart sin el nombre del archivo en Content-Disposition.
+
+El endpoint STT ahora acepta cualquier campo de archivo. Reescribiré LocalSttClient con LinkedMultiValueMap como hace OpenAiClient. Así evito MultipartBodyBuilder y la dependencia de reactive-streams.
+</details></think>
+
+_**Agent (default)**_
+
+`MultipartBodyBuilder` arrastra Reactive Streams y en tu stack MVC no está. Lo cambio al mismo patrón multipart que ya usa OpenAI Whisper.
+
+_**Agent (default)**_
+
 <tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
-<summary>Tool use: **edit_file_v2**</summary>
-Status: **loading**
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\client\LocalSttClient.java</summary>
 
 </details></tool-use>
 
@@ -2691,3 +2762,33 @@ _**Agent (default)**_
 .\mvnw.cmd -q -DskipTests compile
 ```
 </details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Corregido. Se darán instrucciones claras para desplegar.
+</details></think>
+
+_**Agent (default)**_
+
+Ese error venía de `MultipartBodyBuilder`: necesita Reactive Streams y tu backend es solo MVC.
+
+Ya lo cambié al mismo multipart que usa Whisper con OpenAI (sin esa dependencia). Compila bien.
+
+En Lightsail:
+
+```bash
+cd ~/native-etheria/backend
+git pull
+docker compose up -d --build native
+docker compose logs -f native stt
+```
+
+Solo hace falta rebuild de `native` (el Java). El STT ya tolerante se queda como está. Vuelve a probar una práctica.
+
+---
+
+_**User**_
+
+No sé si es el modelo, que no reconoce bien, siento que se está equivocando el whisper de python
+aumenta el nivel aunque suba un poco la latencia, y tambien quiero que se imprima en consola del lightsail la oracion, es decir cuando yo haga docker compose logs -f, ahi quiero ver lo que detectó que dije, para ver que está haciendo

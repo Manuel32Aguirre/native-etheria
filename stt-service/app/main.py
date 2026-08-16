@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -20,13 +21,15 @@ from starlette.datastructures import UploadFile as StarletteUploadFile
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("stt-service")
 
-# Lightsail $7 plans are tight on RAM. Default to "tiny" (int8).
-# Upgrade to "base" only if the instance has spare memory after Java + Postgres.
-MODEL_NAME = os.getenv("WHISPER_MODEL", "tiny")
+# "base" is the accuracy/memory sweet spot for a 1 GB instance running
+# Java + Postgres alongside. "small" is noticeably better but needs more RAM.
+MODEL_NAME = os.getenv("WHISPER_MODEL", "base")
 COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
 DEVICE = os.getenv("WHISPER_DEVICE", "cpu")
 DEFAULT_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "en")
 CPU_THREADS = int(os.getenv("WHISPER_CPU_THREADS", "1"))
+# Higher beam size = better transcripts, slower inference.
+BEAM_SIZE = int(os.getenv("WHISPER_BEAM_SIZE", "5"))
 
 model: WhisperModel | None = None
 
@@ -35,11 +38,12 @@ model: WhisperModel | None = None
 async def lifespan(_app: FastAPI):
     global model
     logger.info(
-        "Loading Whisper model=%s device=%s compute_type=%s threads=%s",
+        "Loading Whisper model=%s device=%s compute_type=%s threads=%s beam=%s",
         MODEL_NAME,
         DEVICE,
         COMPUTE_TYPE,
         CPU_THREADS,
+        BEAM_SIZE,
     )
     model = WhisperModel(
         MODEL_NAME,
@@ -108,14 +112,29 @@ async def transcribe(request: Request) -> dict[str, str]:
             tmp.write(raw)
             tmp_path = tmp.name
 
-        segments, _info = model.transcribe(
+        started = time.monotonic()
+        segments, info = model.transcribe(
             tmp_path,
             language=language,
             vad_filter=True,
-            beam_size=1,
+            beam_size=BEAM_SIZE,
+            best_of=BEAM_SIZE,
+            temperature=[0.0, 0.2, 0.4],
+            condition_on_previous_text=False,
         )
         text = " ".join(segment.text.strip() for segment in segments).strip()
-        logger.info("Transcribed %s bytes -> %s chars", len(raw), len(text))
+        elapsed = time.monotonic() - started
+
+        logger.info("=" * 60)
+        logger.info("HEARD: %s", text or "(no speech detected)")
+        logger.info(
+            "audio=%.1fs | transcribe=%.1fs | model=%s | lang=%s",
+            getattr(info, "duration", 0.0),
+            elapsed,
+            MODEL_NAME,
+            language,
+        )
+        logger.info("=" * 60)
         return {"text": text}
     except HTTPException:
         raise

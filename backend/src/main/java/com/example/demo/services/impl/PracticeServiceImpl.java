@@ -11,11 +11,13 @@ import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repositories.SentenceRepository;
 import com.example.demo.services.PracticeService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PracticeServiceImpl implements PracticeService {
@@ -61,6 +63,10 @@ public class PracticeServiceImpl implements PracticeService {
 
         Sentence sentence = findOwnedSentence(userId, sentenceId);
         boolean isExactMatch = normalize(transcript).equals(normalize(sentence.getOriginalText()));
+
+        log.info("HEARD    : {}", transcript);
+        log.info("EXPECTED : {}", sentence.getOriginalText());
+        log.info("MATCH    : {}", isExactMatch);
 
         return new AudioValidationResponse(isExactMatch, transcript, sentence.getOriginalText());
     }

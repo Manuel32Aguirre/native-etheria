@@ -30,14 +30,15 @@ services:
     container_name: native_stt
     restart: unless-stopped
     environment:
-      WHISPER_MODEL: ${WHISPER_MODEL:-tiny}
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
       WHISPER_COMPUTE_TYPE: int8
       WHISPER_DEVICE: cpu
       WHISPER_LANGUAGE: ${STT_LANGUAGE:-en}
       WHISPER_CPU_THREADS: ${WHISPER_CPU_THREADS:-1}
+      WHISPER_BEAM_SIZE: ${WHISPER_BEAM_SIZE:-5}
       OMP_NUM_THREADS: ${WHISPER_CPU_THREADS:-1}
-    # Keep this low for Lightsail $7. Raise only if the instance has free RAM.
-    mem_limit: 450m
+    # "base" needs more room than "tiny". Lower this again if the host OOMs.
+    mem_limit: 700m
     ports:
       - "127.0.0.1:9000:9000"
     volumes:
