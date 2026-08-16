@@ -3350,3 +3350,29 @@ WHISPER_MODEL=base
 y `mem_limit: 480m`.
 
 Si aguanta el login + una práctica con logs `HEARD: ...`, déjalo en `small.en`.
+
+---
+
+_**User**_
+
+okey, te paso mi .env
+@.env (1-30) 
+y observa tambien los dockers compose
+no sé porque, pero ahora tarda como 20 segundos en procesar, tarda bastantito!
+No se cae el server, y tiene buena precisión pero tarda
+
+---
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: </summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: </summary>
+
+</details></tool-use>

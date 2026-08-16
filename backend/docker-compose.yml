@@ -36,7 +36,7 @@ services:
       WHISPER_DEVICE: cpu
       WHISPER_LANGUAGE: ${STT_LANGUAGE:-en}
       WHISPER_CPU_THREADS: ${WHISPER_CPU_THREADS:-1}
-      WHISPER_BEAM_SIZE: ${WHISPER_BEAM_SIZE:-5}
+      WHISPER_BEAM_SIZE: ${WHISPER_BEAM_SIZE:-1}
       OMP_NUM_THREADS: ${WHISPER_CPU_THREADS:-1}
     # Host only has ~1 GB RAM. Never set this above ~500m on Lightsail $7.
     mem_limit: 700m

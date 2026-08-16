@@ -28,8 +28,8 @@ COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
 DEVICE = os.getenv("WHISPER_DEVICE", "cpu")
 DEFAULT_LANGUAGE = os.getenv("WHISPER_LANGUAGE", "en")
 CPU_THREADS = int(os.getenv("WHISPER_CPU_THREADS", "1"))
-# Higher beam size = better transcripts, slower inference.
-BEAM_SIZE = int(os.getenv("WHISPER_BEAM_SIZE", "5"))
+# Higher beam size = better transcripts, slower inference. On 1 vCPU prefer 1.
+BEAM_SIZE = int(os.getenv("WHISPER_BEAM_SIZE", "1"))
 
 model: WhisperModel | None = None
 
@@ -113,14 +113,17 @@ async def transcribe(request: Request) -> dict[str, str]:
             tmp_path = tmp.name
 
         started = time.monotonic()
+        # Fast path for CPU: greedy decode (beam=1) + no temperature retries.
+        # Raise WHISPER_BEAM_SIZE to 3–5 only if you need more accuracy and can wait.
         segments, info = model.transcribe(
             tmp_path,
             language=language,
             vad_filter=True,
             beam_size=BEAM_SIZE,
-            best_of=BEAM_SIZE,
-            temperature=[0.0, 0.2, 0.4],
+            best_of=1,
+            temperature=0.0,
             condition_on_previous_text=False,
+            without_timestamps=True,
         )
         text = " ".join(segment.text.strip() for segment in segments).strip()
         elapsed = time.monotonic() - started
