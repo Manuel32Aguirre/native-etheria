@@ -48,18 +48,20 @@ public class PracticeServiceImpl implements PracticeService {
             throw new BadRequestException("Audio file is empty");
         }
 
-        findOwnedSentence(userId, sentenceId);
-        String transcript = transcribe(audioBytes, filename);
+        Sentence sentence = findOwnedSentence(userId, sentenceId);
+        String transcript = transcribe(audioBytes, filename, sentence.getOriginalText());
 
         return validateTranscript(userId, sentenceId, transcript);
     }
 
-    private String transcribe(byte[] audioBytes, String filename) {
+    private String transcribe(byte[] audioBytes, String filename, String expectedText) {
         if (sttProperties.isLocal()) {
             return localSttClient.transcribeAudio(audioBytes, filename);
         }
         if (sttProperties.isGroq()) {
-            return groqSttClient.transcribeAudio(audioBytes, filename);
+            // Pass uncommon keywords only — not the full sentence — to avoid Whisper
+            // "hallucinating" the expected answer when the learner said something else.
+            return groqSttClient.transcribeAudio(audioBytes, filename, extractKeywords(expectedText));
         }
         return openAiClient.transcribeAudio(audioBytes, filename);
     }
@@ -123,5 +125,18 @@ public class PracticeServiceImpl implements PracticeService {
                 .replaceAll("[^\\p{L}\\p{N}]+", " ")
                 .trim()
                 .replaceAll("\\s+", " ");
+    }
+
+    /** Rare/long tokens from the target sentence to help Whisper without over-biasing. */
+    private String extractKeywords(String expectedText) {
+        if (expectedText == null || expectedText.isBlank()) {
+            return null;
+        }
+        return java.util.Arrays.stream(normalize(expectedText).split(" "))
+                .filter(word -> word.length() >= 6)
+                .distinct()
+                .limit(12)
+                .reduce((a, b) -> a + ", " + b)
+                .orElse(null);
     }
 }

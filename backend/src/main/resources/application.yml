@@ -77,7 +77,7 @@ stt:
   language: ${STT_LANGUAGE:en}
   groq-api-key: ${GROQ_API_KEY:}
   groq-base-url: ${GROQ_BASE_URL:https://api.groq.com/openai/v1}
-  groq-model: ${GROQ_STT_MODEL:whisper-large-v3-turbo}
+  groq-model: ${GROQ_STT_MODEL:whisper-large-v3}
 
 logging:
   level:

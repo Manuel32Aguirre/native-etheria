@@ -20,8 +20,8 @@ public class SttProperties {
 
     private String groqBaseUrl = "https://api.groq.com/openai/v1";
 
-    /** whisper-large-v3-turbo (fast) or whisper-large-v3 (max accuracy). */
-    private String groqModel = "whisper-large-v3-turbo";
+    /** whisper-large-v3 (max accuracy) or whisper-large-v3-turbo (faster). */
+    private String groqModel = "whisper-large-v3";
 
     public String getProvider() {
         return provider;

@@ -4243,8 +4243,799 @@ Pero no necesito meterle saldo a groq o something asi?
 
 _**Agent (default)**_
 
+<think><details><summary>Thought Process</summary>
+El usuario pregunta si necesita agregar saldo o crédito a Groq para usar la API.
+
+Explicaré la diferencia entre el plan gratuito y los pagos de Groq.
+</details></think>
+
+_**Agent (default)**_
+
 <tool-use data-tool-type="unknown" data-tool-name="web_search"><details>
 <summary>Tool use: **web_search**</summary>
-Status: **loading**
+
+Parameters:
+
+```json
+{
+  "searchTerm": "Groq API free tier billing credit card Whisper 2026"
+}
+```
+Result:
+
+```json
+{
+  "isFinal": true,
+  "references": [
+    {
+      "chunk": "Links:\n1. [Groq pricing in 2026: every model, free tier, and hidden discounts explained | eesel AI](https://www.eesel.ai/blog/groq-pricing)\n2. [Groq Pricing 2026: Per-Model Rates, Free Tier, Batch Discount](https://www.layer3labs.io/guides/groq-pricing)\n3. [Groq API Pricing \u0026 Free Tier Rate Limits 2026 - Dmytro Klymentiev](https://klymentiev.com/blog/groq-pricing)\n4. [Groq API Free Tier Limits in 2026: What You Actually Get](https://www.grizzlypeaksoftware.com/articles/p/groq-api-free-tier-limits-in-2026-what-you-actually-get-uwysd6mb)\n5. [Groq Speech-to-Text (Whisper) API: Pricing, Capabilities \u0026 Alternatives (2026) · apio](https://apio.sh/apis/groq-speech-to-text)\n\nSynthesis:\nGroq provides a free tier for its API that requires no credit card [1][2][3]. You can access Whisper Large v3 and Whisper Large v3-turbo models at no cost, subject to specific rate limits [4][5][6]. \n\nFor the free tier, these limits are 20 requests per minute, 2,000 requests per day, 7,200 audio seconds per hour, and 28,800 audio seconds per day [7][5][6]. Additionally, free tier requests are restricted to a maximum file size of 25 MB [5][6]. If you require higher capacity, you can upgrade to a paid Developer plan by adding a payment method [3][7][5].\n\nHighlights:\n\u003cresult id=\"1\"\u003e\n\u003ctitle\u003eGroq pricing in 2026: every model, free tier, and hidden discounts explained | eesel AI\u003c/title\u003e\n\u003curl\u003ehttps://www.eesel.ai/blog/groq-pricing\u003c/url\u003e\n\u003ccontent\u003eThe free tier requires no credit card and is governed by rate limits, not a monthly token budget. Here's exactly what each model provides on the free plan:\n...\n| Model | RPM | TPM | Requests/day |\n| --- | --- | --- | --- |\n| `llama-3.1-8b-instant` | 30 | 6,000 | 14,400 |\n| `llama-3.3-70b-versatile` | 30 | 12,000 | 1,000 |\n| `meta-llama/llama-4-scout-17b-16e-instruct` | 30 | 30,000 | 1,000 |\n| `openai/gpt-
+… (output truncated)
+```
+User decision: **accepted**
+
+Status: **completed**
 
 </details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+No hace falta agregar saldo. Existe un plan gratuito.
+
+Los límites del plan gratuito aplican. Para uso intensivo se puede necesitar el plan de desarrollador.
+</details></think>
+
+_**Agent (default)**_
+
+No. Para empezar **no necesitas meter saldo**.
+
+Groq tiene **free tier** (sin tarjeta en muchos casos). Con la API key ya puedes usar Whisper.
+
+## Límites típicos del free (Whisper)
+
+- ~**20 requests/minuto**
+- ~**2,000 requests/día**
+
+Con 10 intentos por frase, 2,000/día alcanza para bastante práctica personal. Si un día te pasas, te devolverá error de rate limit, no te cobrará de golpe.
+
+## ¿Cuándo pagarías?
+
+Solo si:
+- te quedas corto del free, o
+- activas plan Developer y te facturan por uso.
+
+En plan de pago, Turbo sigue siendo barato (~$0.04/hora de audio vs ~$0.36 de OpenAI).
+
+**Resumen:** pega la key, redeploy, prueba. No hace falta recargar saldo ahora.
+
+---
+
+_**User**_
+
+no sé que tocaste pero
+
+dice aithentication failed
+o invalid credentitals todo el rato, no me deja entrAR
+
+TOCASTE ALGO DE ESO?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+El usuario no puede iniciar sesión. Recibe errores constantes de autenticación o credenciales inválidas.
+
+Revisé los cambios recientes en Groq. Ninguno debería causar errores de inicio de sesión. Descarté cambios en JWT_SECRET. El fallo de autenticación parece independiente de estos ajustes.
+
+Revisaré si el archivo .env quedó corrupto tras la edición para Groq. También descarto que el login llame al STT o que Spring Security devuelva 401. Verificaré si se modificaron accidentalmente AuthService, SecurityConfig o la entidad User.
+
+Descarté que el error sea por la clave de Groq: eso bloquearía el arranque completo. Si la app arranca, el problema es distinto. Reviso si el .env cambió entre reconstrucciones. Los errores de credenciales inválidas suelen deberse a contraseña incorrecta, usuario inexistente, base de datos vacía, o desajuste en el codificador de contraseñas.
+
+No se borró la base de datos. Los volúmenes Docker permanecen intactos y DB_HOST está bien configurado en el entorno.
+
+Sospecho que el contenedor nativo podría no arrancar correctamente por la clave de Groq. El usuario estaría contactando un servicio anterior o una instancia fallida.
+
+Buscaré en el código fuente las frases exactas de error para identificar su origen.
+
+Confirmé que no tocamos AuthService. Como la aplicación arrancó, el fallo de autenticación no viene de la validación de Groq en AppConfig. Revisaré el flujo de login y buscaré esas frases exactas en el código.
+</details></think>
+
+_**Agent (default)**_
+
+Login no debería haberse tocado con Groq. Voy a revisar qué mensajes salen y si algún cambio reciente puede estar rompiendo la autenticación.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.{java,dart}",
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria",
+  "pattern": "invalid credentials|Authentication failed|Invalid credential|Bad credentials|authentication failed"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria",
+  "pattern": "invalid credentials|Authentication failed|Invalid credential|Bad credentials|authentication failed",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "backend/src/main/java/com/example/demo/services/impl/AuthServiceImpl.java"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\.env</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "**/Auth*.java",
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria\\backend\\src\\main\\java\\com\\example\\demo",
+  "pattern": "login|authenticate|password"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria\\backend\\src\\main\\java\\com\\example\\demo",
+  "pattern": "login|authenticate|password",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "backend/src/main/java/com/example/demo/services/AuthService.java"
+    },
+    {
+      "matchCount": 6,
+      "uri": "backend/src/main/java/com/example/demo/services/impl/AuthServiceImpl.java"
+    },
+    {
+      "matchCount": 3,
+      "uri": "backend/src/main/java/com/example/demo/controllers/AuthController.java"
+    }
+  ],
+  "totalFiles": 3,
+  "totalMatches": 10
+}
+```
+Status: **completed**
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+He detectado el problema. Revisaré la configuración local para entender por qué fallan las credenciales.
+
+El archivo .env contiene marcadores de posición reales como `sk-proj-PEGA_TU_CLAVE_OPENAI`. Esto indica que se copió la plantilla sin reemplazar los valores. La clave de OpenAI es falsa. La contraseña de correo tampoco funciona. El JWT_SECRET sigue siendo el original. El inicio de sesión no depende de la clave de OpenAI. Quizás la clave real está en el servidor.
+
+"Invalid credentials" proviene de AuthServiceImpl cuando el usuario no existe o del authenticationManager cuando la contraseña es incorrecta. Revisaré el método de login completo para descartar errores de código.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\AuthServiceImpl.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria\\frontend\\lib",
+  "pattern": "Invalid credentials|errorMessage|login"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria\\frontend\\lib",
+  "pattern": "Invalid credentials|errorMessage|login",
+  "topFiles": [
+    {
+      "matchCount": 9,
+      "uri": "frontend/lib/providers/sentence_provider.dart"
+    },
+    {
+      "matchCount": 9,
+      "uri": "frontend/lib/providers/practice_provider.dart"
+    },
+    {
+      "matchCount": 5,
+      "uri": "frontend\\lib\\screens\\login_screen.dart"
+    },
+    {
+      "matchCount": 1,
+      "uri": "frontend/lib/main.dart"
+    },
+    {
+      "matchCount": 1,
+      "uri": "frontend/lib/providers/app_settings_provider.dart"
+    },
+    {
+      "matchCount": 3,
+      "uri": "frontend/lib/screens/home_screen.dart"
+    },
+    {
+      "matchCount": 5,
+      "uri": "frontend/lib/screens/login_screen.dart"
+    },
+    {
+      "matchCount": 3,
+      "uri": "frontend\\lib\\screens\\practice_screen.dart"
+    },
+    {
+      "matchCount": 1,
+      "uri": "frontend\\lib\\main.dart"
+    },
+    {
+      "matchCount": 1,
+      "uri": "frontend\\lib\\screens\\schedule_screen.dart"
+    },
+    {
+      "matchCount": 2,
+      "uri": "frontend/lib/services/auth_service.dart"
+    },
+    {
+      "matchCount": 3,
+      "uri": "frontend\\lib\\screens\\home_screen.dart"
+    },
+    {
+      "matchCount": 10,
+      "uri": "frontend/lib/providers/auth_provider.dart"
+    }
+  ],
+  "totalFiles": 13,
+  "totalMatches": 53
+}
+```
+Status: **completed**
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\frontend\lib\screens\login_screen.dart</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+No modifiqué AuthServiceImpl.
+
+Reviso posibles causas del error de autenticación. El cambio en la rediseñación del login no debería afectar AuthGate. Las principales sospechas son: credenciales incorrectas, base de datos reiniciada, o problemas con el JWT_SECRET.
+
+Descarto errores de campo vacío en el login rediseñado. Los placeholders del .env local no afectan si el backend corre en Lightsail. SecurityConfig no fue modificado.
+
+El placeholder de OpenAI no bloquea el arranque del servidor. El problema probablemente está en el .env del servidor: si se sobrescribió con la plantilla y se usaron placeholders para JWT_SECRET, la clave real anterior ya no está. Eso rompería la validación de tokens y explicaría el error de credenciales.
+
+Los placeholders de OpenAI y correo no explican el error de login. La contraseña de base de datos sigue siendo la original. Revisaré cómo GlobalExceptionHandler transforma BadCredentialsException.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\exception\GlobalExceptionHandler.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\frontend\lib\config\app_config.dart</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\frontend\lib\providers\auth_provider.dart</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Revisando el archivo .env local. El usuario reemplazó su clave real de OpenAI por el marcador de posición de una plantilla. Eso explicaría los errores de autenticación.
+
+No modifiqué la autenticación. El error probablemente viene de otra parte: contraseña incorrecta, email sin verificar, usuarios perdidos en la base de datos, o conexión al backend equivocado.
+
+No tocamos la autenticación. El mensaje de error proviene de AuthServiceImpl. La clave de Groq solo afecta el reconocimiento de voz. No modifiqué la autenticación. El usuario debe restaurar su clave real de OpenAI y su contraseña de correo en el archivo .env local.
+</details></think>
+
+_**Agent (default)**_
+
+No. **No toqué login, JWT, usuarios ni Security.** Solo STT (Groq/local).
+
+El mensaje `Invalid credentials` sale de `AuthServiceImpl` cuando:
+- el usuario no existe en la BD, o  
+- la contraseña no coincide  
+
+(Spring también puede devolver `Invalid username or password`.)
+
+## Lo que sí veo en tu `.env` local
+
+Pegaste el template literal:
+
+```dotenv
+OPENAI_API_KEY=sk-proj-PEGA_TU_CLAVE_OPENAI
+MAIL_PASSWORD=pega_tu_app_password
+```
+
+Eso **no debería romper el login**, pero sí rompe OpenAI/mail. Si en Lightsail también dejaste placeholders, restaura las claves **reales** de OpenAI y del correo.
+
+## Qué revisar en SSH
+
+```bash
+cd ~/native-etheria/backend
+docker compose ps
+docker compose logs --tail=50 native
+
+# ¿Existe tu usuario?
+docker compose exec postgres psql -U native_user -d native_db -c "SELECT id, username, email, email_verified FROM users;"
+```
+
+- Si la tabla está **vacía** → se perdió/recreó el volumen de Postgres; hay que registrarte de nuevo y verificar email.  
+- Si el usuario está y `email_verified = false` → el error sería de verificación, no de credentials (usa “Reenviar verificación”).  
+- Si el usuario está y verified = true → contraseña distinta o typo en el username.
+
+## Resumen
+
+| ¿Qué? | ¿Lo toqué? |
+|-------|------------|
+| Login / passwords / JWT | No |
+| Groq STT | Sí |
+| UI login (Flutter) | Solo diseño; AuthGate igual |
+
+Prueba otra vez con el **mismo usuario/password** de siempre. Si la query de `users` sale vacía, el problema es la BD, no Groq. Pégame el resultado de esa query (sin passwords) y lo vemos.
+
+---
+
+_**User**_
+
+De acuerdo!
+solo tengo una duda, el servicio que estás usando de groq, o alguna configuracion o algo amm, no sé si me equivoco pero noté que no reconoce bien mis oraciones cuando las pronuncio y la pronunciacion tiene acento inglés
+pero cuando las digo en ingles con acento en español las acepta
+no sé si es porque esté configurado para recibir español, o si si sea inglés, o si haya que ajustar mas la prediccion, puedes revisar?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+El usuario reporta que Groq Whisper reconoce mejor inglés con acento español que con acento inglés. Pregunta si la configuración del servicio o la predicción requieren ajustes.
+
+Revisaré la configuración del cliente de Groq STT. Buscaré ajustes de idioma, temperatura y prompts que puedan estar causando el problema de reconocimiento.
+</details></think>
+
+_**Agent (default)**_
+
+Voy a revisar la config de Groq STT (idioma, modelo y parámetros) para ver si algo está sesgando hacia español o afectando el reconocimiento.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\client\GroqSttClient.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\config\SttProperties.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "*.{java,yml,env*}",
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria\\backend",
+  "pattern": "STT_LANGUAGE|language|groq|normalize|validate"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "c:\\Users\\vic-s\\OneDrive\\Desktop\\native-etheria\\backend",
+  "pattern": "STT_LANGUAGE|language|groq|normalize|validate",
+  "topFiles": [
+    {
+      "matchCount": 6,
+      "uri": "backend/src/main/java/com/example/demo/controllers/PracticeController.java"
+    },
+    {
+      "matchCount": 1,
+      "uri": "backend\\docker-compose.yml"
+    },
+    {
+      "matchCount": 19,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\config\\SttProperties.java"
+    },
+    {
+      "matchCount": 8,
+      "uri": "backend/src/main/java/com/example/demo/services/impl/PracticeServiceImpl.java"
+    },
+    {
+      "matchCount": 2,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\services\\PracticeService.java"
+    },
+    {
+      "matchCount": 2,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\client\\OpenAiClient.java"
+    },
+    {
+      "matchCount": 5,
+      "uri": "backend\\.env.example"
+    },
+    {
+      "matchCount": 3,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\config\\AppConfig.java"
+    },
+    {
+      "matchCount": 6,
+      "uri": "backend\\src\\main\\resources\\application.yml"
+    },
+    {
+      "matchCount": 1,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\client\\LocalSttClient.java"
+    },
+    {
+      "matchCount": 2,
+      "uri": "backend/src/main/java/com/example/demo/services/PracticeService.java"
+    },
+    {
+      "matchCount": 8,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\services\\impl\\PracticeServiceImpl.java"
+    },
+    {
+      "matchCount": 3,
+      "uri": "backend\\src\\main\\java\\com\\example\\demo\\client\\GroqSttClient.java"
+    },
+    {
+      "matchCount": 2,
+      "uri": "backend/src/main/java/com/example/demo/client/OpenAiClient.java"
+    },
+    {
+      "matchCount": 5,
+      "uri": "backend/src/main/java/com/example/demo/services/impl/SentenceServiceImpl.java"
+    }
+  ],
+  "totalFiles": 15,
+  "totalMatches": 73
+}
+```
+Status: **completed**
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="web_fetch"><details>
+<summary>Tool use: **web_fetch**</summary>
+Fetch timed out while retrieving content
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+He confirmado que el idioma está configurado como inglés (`en`), no como español.
+
+El modelo de reconocimiento es `whisper-large-v3-turbo`, algo menos preciso. La validación exige coincidencia exacta y no se envía ningún prompt para guiar la predicción. El acento español probablemente funciona mejor porque reduce el ritmo y evita contracciones como "gonna" o "wanna", que hacen que Whisper escuche palabras distintas al texto esperado.
+
+El acento español probablemente obliga a pronunciar palabra por palabra con más cuidado, acercándose a la escritura exacta. El acento inglés puede provocar contracciones o cambios de ritmo que hacen que Whisper escuche otra cosa.
+
+La app no verifica el acento, solo la coincidencia exacta de palabras. Si el acento inglés provoca que se escuchen "wanna" en vez de "want to", la validación falla.
+
+Para mejorar, conviene cambiar a `whisper-large-v3` (versión completa) y enviar un `prompt` con la oración esperada. Esto guiará a Whisper hacia la vocabulario correcto.
+
+Sin embargo, enviar la oración completa como prompt podría hacer que Whisper la reproduzca directamente aunque el usuario diga otra cosa. Eso rompería la validación exacta.
+
+Es mejor usar solo vocabulario del dominio o estilo, sin la frase completa. También se puede aplicar una comparación aproximada o fuzzy match. La actualización a `whisper-large-v3` sigue siendo recomendable.
+
+Propongo registrar lo escuchado frente a lo esperado para ver los desajustes. Un matching suave con umbral de similitud es más robusto que la coincidencia exacta. El acento español parece más claro porque impone una pronunciación sílaba a sílaba que se acerca a la escritura formal. El inglés nativo reduce frases y cambia el ritmo, lo que hace que Whisper escuche otra cosa. Se puede agregar un prompt con contexto previo.
+
+Voy a aplicar los cambios directamente. Actualizaré el modelo a `whisper-large-v3` y ajustaré el matching para tolerar contracciones. El prompt con la oración esperada queda descartado por ahora por ser arriesgado.
+
+Revisando el código, pasar la oración esperada como prompt a Groq sería demasiado arriesgado: el modelo podría repetirla incluso si el usuario dice otra cosa. Es mejor usar solo la pregunta como contexto, o un prompt genérico como "spoken English for language learning practice". También se puede suavizar la coincidencia exacta para aceptar variantes comunes de Whisper, como "wanna" en lugar de "want to".
+
+Definiré un prompt fijo para inglés claro. Permitiré sobrescribirlo mediante variable de entorno. El modelo por defecto será `whisper-large-v3`. La validación usará comparación aproximada.
+</details></think>
+
+_**Agent (default)**_
+
+Confirmado: está en inglés (`language=en`), no en español. El problema es otro; voy a subir el modelo y afinar el prompt de Groq para mejorar el reconocimiento.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\PracticeServiceImpl.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Voy a actualizar el modelo por defecto a whisper-large-v3.
+
+El prompt completo puede provocar halucinaciones. Usaré palabras clave del texto esperado como guía, siguiendo la documentación de Whisper.
+
+El prompt será solo "English speech. Correct spelling and grammar." Sin la oración completa. También normalizaré contracciones en ambas direcciones para que los acentos reducidos en inglés coincidan con los escritos en español. Eso debería resolver la mayoría del problema.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\client\GroqSttClient.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\PracticeServiceImpl.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+The string to replace was not found in the file.
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Hay que corregir la normalización. El archivo aún usa replaceAll para caracteres no alfabéticos.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\PracticeServiceImpl.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\resources\application.yml</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\config\SttProperties.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\.env.example</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2** • Run command: .\mvnw.cmd -q -DskipTests compile</summary>
+```bash
+.\mvnw.cmd -q -DskipTests compile
+```
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Revisaré la configuración de Groq. El problema podría deberse al idioma de entrada o a la predicción de acentos.
+</details></think>
+
+_**Agent (default)**_
+
+Revisé el código: **no está en español**. Ya forzaba `language=en`.
+
+## Por qué te pasa eso
+
+No es “configurado para español”. Es más así:
+
+1. Con **acento español** sueles hablar más **sílaba por sílaba**, cerca del texto escrito → Whisper lo pega mejor al `EXPECTED`.
+2. Con **acento inglés** sueles usar **reducciones** (`I'm`, `gonna`, linking, ritmo) → Whisper escribe otra variante → el match exacto falla aunque lo hayas dicho bien.
+3. Usabas **`whisper-large-v3-turbo`**, un poco menos preciso.
+
+La app no mide acento: compara el texto que Groq devolvió vs la frase objetivo.
+
+## Qué ajusté
+
+- Modelo por defecto → **`whisper-large-v3`** (más preciso)
+- `language` forzado a **`en`**
+- Prompt de “English practice”
+- Keywords de la frase (palabras largas) para ayudar sin “regalar” la respuesta
+- Normalización de contracciones (`I'm` ↔ `I am`, etc.)
+
+## En tu `.env` de Lightsail
+
+```dotenv
+GROQ_STT_MODEL=whisper-large-v3
+STT_LANGUAGE=en
+```
+
+```bash
+git pull
+docker compose up -d --build native
+```
+
+En logs mira `HEARD` vs `EXPECTED`: ahí se ve si falla el STT o solo el match. Si tras esto sigue fallando con acento inglés, el siguiente paso sería un match por similitud (~90%) en vez de exacto.
+
+---
+
+_**User**_
+
+Pero debes tener cuidado porque, a veces puede que quiera que diga I'm, a veces I am, no está generalizado todo para siempre hacer match con la forma larga o si?
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+El usuario advierte que expandir siempre las contracciones podría fallar al exigir "I'm" cuando la respuesta correcta es "I am". Prefiere no forzar una única forma de normalización.
+
+Confirmo el problema. Al expandir contracciones en ambos textos antes de comparar, "I'm" y "I am" se igualan y se pierde la distinción entre formas abreviada y larga. Eso rompe la memorización exacta del vocabulario.
+
+Revertiré la expansión de contracciones. Solo normalizaré mayúsculas y puntuación. Así se conserva la distinción exacta entre "I'm" e "I am".
+</details></think>
+
+_**Agent (default)**_
+
+Tienes razón: ahora sí generaliza. Expando contracciones en ambos lados, así que `I'm` e `I am` cuentan igual. Lo revierto para que respete la forma exacta de la frase.
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2** • Edit file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\PracticeServiceImpl.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+Reviso cómo eliminar los apóstroficos para evitar que la abreviatura se confunda con la forma larga.
+
+Revertí la expansión de contracciones. Al quitar apóstroficos, "I'm" se vuelve "im" e "I am" se vuelve "i am"; sin esa expansión, ambas formas no coinciden. Así se evita que el sistema acepte ambos modos de decir lo mismo.
+</details></think>
+
+_**Agent (default)**_
+
+Correcto: lo había dejado generalizado. **Ya lo revertí.**
+
+Ahora el match vuelve a ser estricto sobre las **palabras**:
+
+| Objetivo | Dices | ¿Pasa? |
+|----------|-------|--------|
+| `I'm ready` | `I'm ready` | Sí |
+| `I'm ready` | `I am ready` | No |
+| `I am ready` | `I am ready` | Sí |
+| `I am ready` | `I'm ready` | No |
+
+Solo se ignoran mayúsculas, puntuación y espacios raros. **No** se expanden contracciones.
+
+Siguen los otros ajustes (modelo `large-v3`, `language=en`, prompt en inglés). Tras el `git pull` + rebuild de `native`, queda así.
+
+---
+
+_**User**_
+
+Otra cosa, no se si sigue pero, recuerda que la frase, debe de ser igual, pero ignora los signos de puntuacion, comas, guiones, puntos seguidos, puntos y coma, todos y cualquier signo que haya, incluso de exclamacion o interrogacion porque esos a veces al yo dictar, puede ser que no los detecte cuando se convierta mi voz
+
+
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+El usuario quiere confirmar que se ignoren todos los signos de puntuación al comparar el texto esperado con la transcripción.
+
+Revisando la función de normalización actual.
+</details></think>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2** • Read file: c:\Users\vic-s\OneDrive\Desktop\native-etheria\backend\src\main\java\com\example\demo\services\impl\PracticeServiceImpl.java</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+La normalización actual ya ignora los signos de puntuación.
+
+La expresión regular elimina cualquier carácter que no sea letra o número. Esto cubre comas, puntos, signos de exclamación, guiones, comillas, etc. Las apóstrofes se eliminan por separado antes de esa limpieza.
+</details></think>
+
+_**Agent (default)**_
+
+Sí, **eso ya está así** y sigue vigente.
+
+La comparación hace esto:
+
+1. Minúsculas  
+2. Quita apóstrofes (`I'm` → `im`)  
+3. **Todo lo que no sea letra o número** lo convierte en espacio  
+
+Eso incluye: `,` `.` `;` `:` `!` `?` `-` `–` `—` `…` `"` `(` `)` y cualquier otro signo.
+
+Ejemplo:
+
+| Esperado | Dijiste (Whisper) | ¿Pasa? |
+|----------|-------------------|--------|
+| `Hello, world!` | `Hello world` | Sí |
+| `What? Really…` | `what really` | Sí |
+| `well-known tool` | `well known tool` | Sí |
+| `I'm ready.` | `im ready` | Sí |
+| `I'm ready.` | `I am ready` | No (palabras distintas) |
+
+Solo importan las **palabras** (y números). La puntuación no.
+
+---
+
+_**User**_
+
+Entonces que hago? reinicio back? front? que

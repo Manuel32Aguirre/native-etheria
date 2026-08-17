@@ -21,6 +21,10 @@ import org.springframework.web.client.RestClientResponseException;
 @Component
 public class GroqSttClient {
 
+    private static final String ENGLISH_PROMPT =
+            "This is clear spoken English for language-learning practice. "
+                    + "Prefer standard American English spelling and wording.";
+
     private final RestClient restClient;
     private final SttProperties properties;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -33,6 +37,14 @@ public class GroqSttClient {
     }
 
     public String transcribeAudio(byte[] audioBytes, String filename) {
+        return transcribeAudio(audioBytes, filename, null);
+    }
+
+    /**
+     * @param vocabularyHint optional words/phrases that may appear (helps uncommon terms).
+     *                       Do not pass the full expected answer alone — Whisper can over-bias.
+     */
+    public String transcribeAudio(byte[] audioBytes, String filename, String vocabularyHint) {
         String safeName = filename == null || filename.isBlank() ? "audio.m4a" : filename;
 
         ByteArrayResource resource = new ByteArrayResource(audioBytes) {
@@ -45,9 +57,18 @@ public class GroqSttClient {
         MultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
         form.add("file", resource);
         form.add("model", properties.getGroqModel());
-        form.add("language", properties.getLanguage());
+        // Force English decoding — never auto-detect Spanish.
+        form.add("language", "en");
         form.add("response_format", "json");
         form.add("temperature", "0");
+
+        String prompt = ENGLISH_PROMPT;
+        if (vocabularyHint != null && !vocabularyHint.isBlank()) {
+            prompt = ENGLISH_PROMPT + " Possible terms: " + vocabularyHint;
+        }
+        form.add("prompt", prompt);
+
+        log.info("GROQ STT model={} language=en", properties.getGroqModel());
 
         String responseBody;
         try {
